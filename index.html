@@ -1,0 +1,199 @@
+<html>
+<head>
+	<title>Flood</title>
+	<meta charset='UTF-8'/>
+	<script src="https://unpkg.com/react@latest/dist/react.js"></script>
+   <script src="https://unpkg.com/react-dom@latest/dist/react-dom.js"></script>
+	<script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+
+	<style>
+		.square {
+			border: 1px solid #FFF;
+			height: 50px;
+			width: 50px;
+		}
+
+		.board-column {
+			float: left;
+		}
+	</style>
+</head>
+
+<body>
+	<div id="errors"></div>
+	<div id="container"></div>
+</body>
+
+
+
+
+<script type='text/babel'>
+// needs to display color and send it back up on click
+function Square(props) {
+	return (
+		<button className="square" style={{backgroundColor: props.color,}} onClick={() => props.onClick()}></button>
+	);
+}
+
+// renders board based on info from Game
+class Board extends React.Component {
+	renderSquare(x, y, color) {
+		return <Square color={color} onClick={() => this.props.onClick(x,y)}/>;
+	}
+
+	render() {
+		// NOTE currently unused
+   	const size = this.props.size;
+   	const colors = this.props.colors.slice();
+
+  //  	return (
+  //  		<div>
+  //  		{colors.map((column, x) => column.map((color, y) => 
+  //  			<div className="square">{this.renderSquare(x, y, color)}</div>
+		// 	))}
+		// 	</div>
+		// );
+
+   	return (
+   		<div>
+   			{colors.map((column, x) =>
+   				<span className="board-column" key={"column"+x}>{column.map((color, y) => 
+   				   <div className="square" key={x+""+y}>{this.renderSquare(x, y, color)}</div>)}
+   				</span>
+   			)}
+   		</div>
+   	);
+	};
+}
+
+// game logic and state
+class Game extends React.Component {
+	constructor(props) {
+		super(props);
+		this.state = {
+			size: this.props.size,
+			numColors: this.props.numColors,
+			colors: Array(this.props.size),
+			connectivity: Array(this.props.size),
+		}
+
+		// initialize colors and connectivity arrays
+		let colorInt;
+	   for (let x = 0; x < this.state.size; x++) {
+	    	this.state.colors[x] = Array(this.state.size);
+	    	this.state.connectivity[x] = Array(this.state.size);
+			for (let y = 0; y < this.state.size; y++) {
+
+				// randomize starting state
+				colorInt = Math.floor(Math.random() * this.state.numColors);
+				switch(colorInt) {
+				case 0:
+					this.state.colors[x][y] = "red";
+					break;
+				case 1:
+					this.state.colors[x][y] = "green"
+					break;
+				case 2:
+					this.state.colors[x][y] = "blue"
+					break;
+				case 3:
+					this.state.colors[x][y] = "yellow"
+					break;
+				case 4:
+					this.state.colors[x][y] = "purple"
+					break;
+				case 5:
+					this.state.colors[x][y] = "orange"
+					break;
+				}
+				this.state.connectivity[x][y] = false;
+			}
+		}
+
+		this.updateConnectivity();
+	}
+
+	// determine which squares are part of the flood
+	// BUG gets derailed sometimes by race condition when this.state hasn't updated yet after constructor
+	updateConnectivity() {
+		let connectivity = this.state.connectivity.slice();
+		const size = this.state.size;
+		const colors = this.state.colors.slice();
+		const activeColor = colors[0][0];
+
+		// keep track of which squares have already been checked
+		let checked = Array(size);
+		for (let i = 0; i < size; i++) {
+			checked[i] = Array(size)
+			for (let j = 0; j < size; j++) {
+				checked[i][j] = false;
+			}
+		}
+
+		let square;
+		let queue = [{x: 0, y: 0}];
+		while (queue.length > 0) {
+			square = queue.shift();
+
+			// NOTE could be optimized to compare against the checked matrix prior to pushing
+			if (checked[square.x][square.y]) {
+				continue;
+			}
+
+			if (colors[square.x][square.y] === activeColor) {
+				connectivity[square.x][square.y] = true;
+
+				// add adjacent squares to queue
+				if (square.x > 0) { queue.push({x: (square.x - 1), y: square.y}); }
+				if (square.x < size) { queue.push({x: (square.x + 1), y: square.y}); }
+				if (square.y > 0) { queue.push({x: square.x, y: (square.y - 1)}); }
+				if (square.y < size) { queue.push({x: square.x, y: (square.y + 1)}); }
+			}
+
+			checked[square.x][square.y] = true;
+		}
+
+		this.setState({connectivity: connectivity});
+	}
+
+	// change flood color to match the square that was clicked
+	// **UNTESTED**
+	handleClick(x,y) {
+		let colors = this.state.colors.slice();
+		const newColor = colors[x][y];
+		const connectivity = this.state.connectivity.slice();
+		const size = this.state.size;
+
+		// change color of all squares which are connected to the top left
+		for (let i = 0; i < size; i++) {
+			for (let j = 0; j < size; j++) {
+				if (connectivity[i][j]) {
+					colors[i][j] = newColor;
+				}
+			}
+		}
+
+		this.setState({colors: colors});
+	}
+
+	// update connectivity matrix when colors are changed
+	componentDidUpdate(prevProps, prevState) {
+		if (!prevState.colors.equals(this.state.colors)) {
+			this.updateConnectivity();
+		}
+	}
+
+	render() {
+		return (
+			<Board colors={this.state.colors} onClick={(x,y) => this.handleClick(x,y)}/>
+		);
+	}
+}
+
+ReactDOM.render(
+	<Game size={4} numColors={3}/>, // TODO set from input
+	document.getElementById('container')
+);
+</script>
+
+</html>
