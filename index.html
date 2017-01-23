@@ -25,12 +25,16 @@
 			float: left;
 		}
 
-		.status {
-			margin-left: 10px;
+		#status {
+			margin: 10px 0 0 10px;
 			font: 36px bold, sans-serif;
 		}
 
-		.solution, .moveNumber {
+		#moveNumber {
+			font: 36px bold, sans-serif;
+		}
+
+		.outputText {
 			margin-left: 10px;
 			font: 24px bold, sans-serif;
 		}
@@ -64,12 +68,7 @@
 
 <script type='text/babel'>
 
-//////////////////////////////////////////////////
-// TODOS
-// count number of moves
-//////////////////////////////////////////////////
-
-// needs to display color and send it back up on click
+// display color and send it back up on click
 function Square(props) {
 	return (
 		<button className="square" style={{backgroundColor: props.color,}} onClick={() => props.onClick()}></button>
@@ -108,6 +107,7 @@ class Game extends React.Component {
 
 		this.state = {
 			status: "",
+			solutionMoves: "?",
 			solution: "",
 			moveNumber: 0,
 			colors: new Array(),
@@ -123,7 +123,9 @@ class Game extends React.Component {
 			6: "yellow"
 		}
 
-		this.initializeBoard();
+		this.solution = "";
+
+		this.initializeBoard(true);
 	}
 
 	componentWillReceiveProps(nextProps) {
@@ -132,7 +134,7 @@ class Game extends React.Component {
 		this.initializeBoard();
 	}
 
-	initializeBoard() {
+	initializeBoard(firstTime = false) {
 		this.connectivity = Array(this.props.size);
 		this.startingConnectivity = Array(this.props.size);
 		this.startingColors = Array(this.props.size);
@@ -157,8 +159,17 @@ class Game extends React.Component {
 		this.startingConnectivity = this.duplicate2dArray(this.connectivity);
 
 		this.updateConnectivity();
+
+		if (!firstTime) {
+			this.setState({moveNumber: 0});
+			this.displayTempColors();
+			this.solve();
+		}
+	}
+
+	componentWillMount() {
 		this.displayTempColors();
-		this.setState({moveNumber: 0});
+		this.solve();
 	}
 
 	displayTempColors() {
@@ -293,32 +304,40 @@ class Game extends React.Component {
 
 	// find shortest solution
 	solve() {
+		let newState = {};
 		let currentPath = [0];
 		this.resetBoard(false);
 
-		while (!this.gameIsWon()) {
+		while (!this.gameIsOver()) {
 			this.resetBoard(false);
 			currentPath.map(function(moveInt) {
 				this.changeFloodColor(this.numberToColor[moveInt]);
 				this.updateConnectivity();
 			}, this);
 
-			if (this.gameIsWon()) {
+			if (this.gameIsOver()) {
 				break;
 			} else {
 				currentPath = this.findNextMove(currentPath, currentPath.length);
 			}
 		}
 
-		let solutionText = currentPath.reduce((prev, curr) => prev.concat(this.numberToColor[curr] + ", "), "");
-		solutionText = solutionText.slice(0,-2)
-
 		this.resetBoard(true);
-		this.setState({solution: solutionText});
+		this.solution = currentPath.reduce((prev, curr) => prev.concat(this.numberToColor[curr] + ", "), "").slice(0,-2);
+		
+		this.setState({solutionMoves: currentPath.length});
+	}
+
+	toggleSolution() {
+		if (this.state.solution == "") {
+			this.setState({solution: this.solution});
+		} else {
+			this.setState({solution: ""});
+		}
 	}
 
 	// checks if connectivity matrix is all true
-	gameIsWon() {
+	gameIsOver() {
 		const connectivity = this.duplicate2dArray(this.connectivity);
 		const flatten = arr => arr.reduce((a, b) => a.concat(Array.isArray(b) ? flatten(b) : b), []);
 
@@ -357,8 +376,12 @@ class Game extends React.Component {
 			let newState = {};
 			newState["moveNumber"] = this.state.moveNumber + 1;
 
-			if (this.gameIsWon()) {
-				newState["status"] = "You win!";
+			if (this.gameIsOver()) {
+				if (this.state.moveNumber + 1 == this.state.solutionMoves) {
+					newState["status"] = "You win!";
+				} else {
+					newState["status"] = "Try again";
+				}
 			}
 
 			this.setState(newState);
@@ -367,16 +390,20 @@ class Game extends React.Component {
 	}
 
 	render() {
+		let solutionBtnStyle = {
+			backgroundColor: this.state.solution == "" ? "white" : "gray", 
+		};
 		return (
 			<div>
 				<Board colors={this.state.colors} onClick={(x,y) => this.handleClick(x,y)}/>
 				<div className="controlContainer">
-					<button className="controlBtn" onClick={() => this.solve()}>Solve</button>
+					<button className="controlBtn" onClick={() => this.initializeBoard()}>New</button>
 					<button className="controlBtn" onClick={() => this.resetBoard(true)}>Restart</button>
-					<button className="controlBtn" onClick={() => this.initializeBoard()}>New Game</button>
-					<div className="solution">{this.state.solution}</div>
-					<div className="moveNumber">Move: {this.state.moveNumber}</div>
-					<div className="status">{this.state.status}</div>
+					<button className="controlBtn" style={solutionBtnStyle} onClick={() => this.toggleSolution()}>Solution</button>
+					<div className="outputText" id="moveNumber">Move: {this.state.moveNumber}</div>
+					<div className="outputText" id="solutionMoves">Goal: {this.state.solutionMoves}</div>
+					<div className="outputText" id="solution">{this.state.solution}</div>
+					<div id="status">{this.state.status}</div>
 				</div>
 			</div>
 		);
