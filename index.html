@@ -32,6 +32,14 @@
 
 
 <script type='text/babel'>
+
+//////////////////////////////////////////////////
+// TODOS
+// set Game.size and Game.numColors from input
+// count number of moves
+// find most efficient solution
+//////////////////////////////////////////////////
+
 // needs to display color and send it back up on click
 function Square(props) {
 	return (
@@ -81,33 +89,32 @@ class Game extends React.Component {
 
 				// randomize starting state
 				colorInt = Math.floor(Math.random() * this.state.numColors);
-				switch(colorInt) {
-				case 0:
-					this.state.colors[x][y] = "red";
-					break;
-				case 1:
-					this.state.colors[x][y] = "green"
-					break;
-				case 2:
-					this.state.colors[x][y] = "blue"
-					break;
-				case 3:
-					this.state.colors[x][y] = "yellow"
-					break;
-				case 4:
-					this.state.colors[x][y] = "purple"
-					break;
-				case 5:
-					this.state.colors[x][y] = "orange"
-					break;
-				}
+				this.state.colors[x][y] = this.numberToColor(colorInt);
 				this.state.connectivity[x][y] = false;
 			}
 		}
 
-
 		// BUG race condition when this.state hasn't updated yet after constructor
 		this.updateConnectivity();
+	}
+
+	numberToColor(number) {
+		switch(number) {
+		case 0:
+			return "red";
+		case 1:
+			return "green"
+		case 2:
+			return "blue"
+		case 3:
+			return "yellow"
+		case 4:
+			return "purple"
+		case 5:
+			return "orange"
+		default:
+			return "black"
+		}
 	}
 
 	// determine which squares are part of the flood
@@ -153,14 +160,12 @@ class Game extends React.Component {
 		this.setState({connectivity: connectivity});
 	}
 
-	// change flood color to match the square that was clicked
-	handleClick(x,y) {
+	// change color of all squares which are connected to the top left
+	changeFloodColor(newColor) {
 		let colors = this.state.colors.slice();
-		const newColor = colors[x][y];
 		const connectivity = this.state.connectivity.slice();
 		const size = this.state.size;
 
-		// change color of all squares which are connected to the top left
 		for (let i = 0; i < size; i++) {
 			for (let j = 0; j < size; j++) {
 				if (connectivity[i][j]) {
@@ -172,6 +177,12 @@ class Game extends React.Component {
 		this.setState({colors: colors}, this.updateConnectivity);
 	}
 
+	// change flood color to match the square that was clicked
+	handleClick(x,y) {
+		this.changeFloodColor(this.state.colors[x][y]);
+	}
+
+	// checks if connectivity matrix is all true
 	checkForWin() {
 		const connectivity = this.state.connectivity.slice();
 		const flatten = arr => arr.reduce((a, b) => a.concat(Array.isArray(b) ? flatten(b) : b), []);
@@ -179,7 +190,80 @@ class Game extends React.Component {
 		if (flatten(connectivity).reduce((prev, curr) => prev && curr)) {
 			this.setState({status: "You win!"});
 		}
+	}
 
+	// determine the next unique move
+	// traverses the tree of all possible sequences moves given a number of colors
+	// 
+	// currentPath (array<int>) the path leading to the current move
+	// numMoves (int) how many moves have been taken AKA tree depth
+	// starting arguments should be ([0], 1)
+	// all examples assume numColors = 3
+	findNextMove(currentPath, numMoves) {
+		const numColors = this.state.numColors;
+		let currentMove, nextMove;
+
+		if (currentPath.length == 0) {
+
+			// build starting path of numMoves length
+			// this will always take the form 01010[...]
+			numMoves++;
+			currentPath.push(0);
+			while (currentPath.length < numMoves) {
+				currentMove = currentPath.pop();
+				nextMove = currentMove == 0 ? 1 : 0;
+				currentPath.push(currentMove, nextMove);
+			}
+		
+		} else {
+			// increment last move, if possible
+			// and rebuild path to length of numMoves if necessary
+
+			currentMove = currentPath.pop();
+			if (currentMove < numColors - 1) {
+				if (currentMove + 1 != currentPath[currentPath.length - 1]) {
+					// simple incremenation is possible
+					// ie 020 => 021
+					currentPath.push(currentMove + 1);
+
+				} else if (currentMove + 2 < numColors) {
+					// next incremenation is a duplicate, but extra incrementation is valid 
+					// ie 010 => 012
+					currentPath.push(currentMove + 2);
+
+				} else {
+					// next incremenation is a duplicate, and extra incrementation is invalid
+					// requires modification of parent
+					// ie 021 => 101
+					return this.findNextMove(currentPath, numMoves);
+
+				}
+			} else {
+				// move up a level and try again
+				return this.findNextMove(currentPath, numMoves);
+			}
+
+			// currentPath is now valid and incremented
+			// but may be too short
+			while (currentPath.length < numMoves) {
+				// like the currentPath.length == 0 case, fills out remainder with 0101[...]
+				currentMove = currentPath.pop();
+				nextMove = currentMove == 0 ? 1 : 0;
+				currentPath.push(currentMove, nextMove);
+			}
+
+		}
+		
+		return currentPath;
+
+	}
+
+	solve() {
+		let currentPath = [0];
+		while (currentPath.length < 4) {
+			currentPath = this.findNextMove(currentPath, currentPath.length);
+			console.log(currentPath)
+		}
 	}
 
 	render() {
@@ -187,13 +271,14 @@ class Game extends React.Component {
 			<div>
 				<Board colors={this.state.colors} onClick={(x,y) => this.handleClick(x,y)}/>
 				<div className="status">{this.state.status}</div>
+				<button className="solveBtn" onClick={() => this.solve()}>Solve</button>
 			</div>
 		);
 	}
 }
 
 ReactDOM.render(
-	<Game size={4} numColors={4}/>, // TODO set from input
+	<Game size={5} numColors={3}/>,
 	document.getElementById('container')
 );
 </script>
