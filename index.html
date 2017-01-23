@@ -30,7 +30,7 @@
 			font: 36px bold, sans-serif;
 		}
 
-		.solution {
+		.solution, .moveNumber {
 			margin-left: 10px;
 			font: 24px bold, sans-serif;
 		}
@@ -109,6 +109,7 @@ class Game extends React.Component {
 		this.state = {
 			status: "",
 			solution: "",
+			moveNumber: 0,
 			colors: new Array(),
 		}
 
@@ -157,6 +158,7 @@ class Game extends React.Component {
 
 		this.updateConnectivity();
 		this.displayTempColors();
+		this.setState({moveNumber: 0});
 	}
 
 	displayTempColors() {
@@ -334,7 +336,7 @@ class Game extends React.Component {
 		
 		if (shouldDisplay) {
 			this.displayTempColors();
-			this.setState({status: ""});
+			this.setState({status: "", moveNumber: 0});
 		}
 	}
 
@@ -347,12 +349,21 @@ class Game extends React.Component {
 
 	// change flood color to match the square that was clicked
 	handleClick(x,y) {
-		this.changeFloodColor(this.state.colors[x][y]);
-		this.updateConnectivity();
-		if (this.gameIsWon()) {
-			this.setState({status: "You win!"});
+		const colors = this.duplicate2dArray(this.state.colors);
+		if (colors[x][y] != colors[0][0]) {
+			this.changeFloodColor(colors[x][y]);
+			this.updateConnectivity();
+
+			let newState = {};
+			newState["moveNumber"] = this.state.moveNumber + 1;
+
+			if (this.gameIsWon()) {
+				newState["status"] = "You win!";
+			}
+
+			this.setState(newState);
+			this.displayTempColors();
 		}
-		this.displayTempColors();
 	}
 
 	render() {
@@ -364,6 +375,7 @@ class Game extends React.Component {
 					<button className="controlBtn" onClick={() => this.resetBoard(true)}>Restart</button>
 					<button className="controlBtn" onClick={() => this.initializeBoard()}>New Game</button>
 					<div className="solution">{this.state.solution}</div>
+					<div className="moveNumber">Move: {this.state.moveNumber}</div>
 					<div className="status">{this.state.status}</div>
 				</div>
 			</div>
