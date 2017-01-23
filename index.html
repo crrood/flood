@@ -18,6 +18,7 @@
 		}
 
 		.status {
+			left-margin: 10px;
 			font: 36px bold, sans-serif;
 		}
 
@@ -25,15 +26,16 @@
 			font: 18px bold, sans-serif;
 		}
 
-		.solveBtn {
+		.controlBtn {
 			margin: 10px;
 			font: 24px bold, sans-serif;
 		}
 
-		.resetBtn {
+		select {
 			margin: 10px;
-			font: 24px bold, sans-serif;
+			font: 18px bold, sans-serif;
 		}
+
 	</style>
 </head>
 
@@ -49,9 +51,7 @@
 
 //////////////////////////////////////////////////
 // TODOS
-// set Game.size and Game.numColors from input
 // count number of moves
-// find most efficient solution
 //////////////////////////////////////////////////
 
 // needs to display color and send it back up on click
@@ -69,7 +69,6 @@ class Board extends React.Component {
 
 	render() {
 		const colors = this.props.colors.slice();
-
 		return (
    		<div className="board">
    			{colors.map((column, x) =>
@@ -90,7 +89,7 @@ class Game extends React.Component {
 
 		this.state = {
 			status: "Click any square",
-			colors: Array(this.props.size),
+			colors: new Array(),
 			solution: "",
 		}
 
@@ -98,12 +97,21 @@ class Game extends React.Component {
 			0: "red",
 			1: "green",
 			2: "blue",
-			3: "yellow",
-			4: "purple",
+			3: "purple",
+			4: "gray",
 			5: "orange",
-			6: "black"
+			6: "yellow"
 		}
 
+		this.initializeBoard();
+	}
+
+	componentWillReceiveProps(nextProps) {
+		this.props = nextProps;
+		this.initializeBoard();
+	}
+
+	initializeBoard() {
 		this.connectivity = Array(this.props.size);
 		this.startingConnectivity = Array(this.props.size);
 		this.startingColors = Array(this.props.size);
@@ -126,14 +134,9 @@ class Game extends React.Component {
 		}
 		this.tempColors = this.duplicate2dArray(this.startingColors);
 		this.startingConnectivity = this.duplicate2dArray(this.connectivity);
-	}
-
-	componentDidMount() {
 		this.updateConnectivity();
-	}
-
-	componentDidUpdate() {
-		this.updateConnectivity();
+		this.displayTempColors();
+		this.setState({solution: "", status: "Click any square"});
 	}
 
 	displayTempColors() {
@@ -268,7 +271,9 @@ class Game extends React.Component {
 
 	// find shortest solution
 	solve() {
+		this.setState({solution: "this may take a while with higher size / number combinations..."});
 		let currentPath = [0];
+		this.resetBoard(false);
 
 		while (!this.gameIsWon()) {
 			this.resetBoard(false);
@@ -336,16 +341,59 @@ class Game extends React.Component {
 			<div>
 				<Board colors={this.state.colors} onClick={(x,y) => this.handleClick(x,y)}/>
 				<div className="status">{this.state.status}</div>
-				<button className="solveBtn" onClick={() => this.solve()}>Solve</button>
-				<button className="resetBtn" onClick={() => this.resetBoard(true)}>Reset</button>
+				<button className="controlBtn" onClick={() => this.solve()}>Solve</button>
+				<button className="controlBtn" onClick={() => this.resetBoard(true)}>Restart</button>
+				<button className="controlBtn" onClick={() => this.initializeBoard()}>New Game</button>
 				<div className="solution">{this.state.solution}</div>
 			</div>
 		);
 	}
 }
 
+class Container extends React.Component {
+	constructor(props) {
+		super(props);
+		this.state = {
+			gameSize: 5,
+			numColors: 4,
+		}
+	}
+
+	handleGameSizeChange(e) {
+		this.setState({gameSize: e.target.value});
+	}
+
+	handleNumColorsChange(e) {
+		this.setState({numColors: e.target.value});
+	}
+
+	render() {
+		return (
+			<div>
+	   		<select name="gameSize" defaultValue="5" onChange={(e) => this.handleGameSizeChange(e)}>
+	   			<option value="4">4x4</option>
+	   			<option value="5">5x5</option>
+	   			<option value="6">6x6</option>
+	   			<option value="7">7x7</option>
+	   			<option value="8">8x8</option>
+	   			<option value="10">10x10</option>
+	   			<option value="12">12x12</option>
+	   		</select>
+	   		<select name="numColors" defaultValue="4" onChange={(e) => this.handleNumColorsChange(e)}>
+	   			<option value="3">3</option>
+	   			<option value="4">4</option>
+	   			<option value="5">5</option>
+	   			<option value="6">6</option>
+	   			<option value="7">7</option>
+	   		</select>
+	   		<Game size={this.state.gameSize} numColors={this.state.numColors}/>
+   		</div>
+   	);
+	};
+}
+
 ReactDOM.render(
-	<Game size={5} numColors={3}/>,
+	<Container/>,
 	document.getElementById('container')
 );
 </script>
