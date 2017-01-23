@@ -161,7 +161,7 @@ class Game extends React.Component {
 		this.updateConnectivity();
 
 		if (!firstTime) {
-			this.setState({moveNumber: 0});
+			this.setState({moveNumber: 0, solution: ""});
 			this.displayTempColors();
 			this.solve();
 		}
