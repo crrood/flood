@@ -20,6 +20,20 @@
 		.status {
 			font: 36px bold, sans-serif;
 		}
+
+		.solution {
+			font: 18px bold, sans-serif;
+		}
+
+		.solveBtn {
+			margin: 10px;
+			font: 24px bold, sans-serif;
+		}
+
+		.resetBtn {
+			margin: 10px;
+			font: 24px bold, sans-serif;
+		}
 	</style>
 </head>
 
@@ -70,58 +84,68 @@ class Board extends React.Component {
 
 // game logic and state
 class Game extends React.Component {
+
 	constructor(props) {
 		super(props);
+
 		this.state = {
-			size: this.props.size,
-			numColors: this.props.numColors,
-			colors: Array(this.props.size),
-			connectivity: Array(this.props.size),
 			status: "Click any square",
+			colors: Array(this.props.size),
+			solution: "",
 		}
+
+		this.numberToColor = {
+			0: "red",
+			1: "green",
+			2: "blue",
+			3: "yellow",
+			4: "purple",
+			5: "orange",
+			6: "black"
+		}
+
+		this.connectivity = Array(this.props.size);
+		this.startingConnectivity = Array(this.props.size);
+		this.startingColors = Array(this.props.size);
+		this.tempColors = Array(this.props.size);
 
 		// initialize colors and connectivity arrays
 		let colorInt;
-	   for (let x = 0; x < this.state.size; x++) {
-	    	this.state.colors[x] = Array(this.state.size);
-	    	this.state.connectivity[x] = Array(this.state.size);
-			for (let y = 0; y < this.state.size; y++) {
+	   for (let x = 0; x < this.props.size; x++) {
+	    	this.state.colors[x] = Array(this.props.size);
+	    	this.startingColors[x] = Array(this.props.size);
+	    	this.connectivity[x] = Array(this.props.size);
+			for (let y = 0; y < this.props.size; y++) {
 
 				// randomize starting state
-				colorInt = Math.floor(Math.random() * this.state.numColors);
-				this.state.colors[x][y] = this.numberToColor(colorInt);
-				this.state.connectivity[x][y] = false;
+				colorInt = Math.floor(Math.random() * this.props.numColors);
+				this.state.colors[x][y] = this.numberToColor[colorInt];
+				this.startingColors[x][y] = this.numberToColor[colorInt];
+				this.connectivity[x][y] = false;
 			}
 		}
+		this.tempColors = this.duplicate2dArray(this.startingColors);
+		this.startingConnectivity = this.duplicate2dArray(this.connectivity);
+	}
 
-		// BUG race condition when this.state hasn't updated yet after constructor
+	componentDidMount() {
 		this.updateConnectivity();
 	}
 
-	numberToColor(number) {
-		switch(number) {
-		case 0:
-			return "red";
-		case 1:
-			return "green"
-		case 2:
-			return "blue"
-		case 3:
-			return "yellow"
-		case 4:
-			return "purple"
-		case 5:
-			return "orange"
-		default:
-			return "black"
-		}
+	componentDidUpdate() {
+		this.updateConnectivity();
+	}
+
+	displayTempColors() {
+		this.setState({colors: this.tempColors});
 	}
 
 	// determine which squares are part of the flood
+	// uses tempColors instead of state.colors
 	updateConnectivity() {
-		let connectivity = this.state.connectivity.slice();
-		const size = this.state.size;
-		const colors = this.state.colors.slice();
+		let connectivity = this.duplicate2dArray(this.connectivity);
+		const size = this.props.size;
+		const colors = this.duplicate2dArray(this.tempColors);
 		const activeColor = colors[0][0];
 
 		// keep track of which squares have already been checked
@@ -156,15 +180,14 @@ class Game extends React.Component {
 			checked[square.x][square.y] = true;
 		}
 
-		this.checkForWin();
-		this.setState({connectivity: connectivity});
+		this.connectivity = this.duplicate2dArray(connectivity);
 	}
 
 	// change color of all squares which are connected to the top left
 	changeFloodColor(newColor) {
-		let colors = this.state.colors.slice();
-		const connectivity = this.state.connectivity.slice();
-		const size = this.state.size;
+		let colors = this.duplicate2dArray(this.tempColors);
+		const connectivity = this.duplicate2dArray(this.connectivity);
+		const size = this.props.size;
 
 		for (let i = 0; i < size; i++) {
 			for (let j = 0; j < size; j++) {
@@ -174,33 +197,19 @@ class Game extends React.Component {
 			}
 		}
 
-		this.setState({colors: colors}, this.updateConnectivity);
-	}
-
-	// change flood color to match the square that was clicked
-	handleClick(x,y) {
-		this.changeFloodColor(this.state.colors[x][y]);
-	}
-
-	// checks if connectivity matrix is all true
-	checkForWin() {
-		const connectivity = this.state.connectivity.slice();
-		const flatten = arr => arr.reduce((a, b) => a.concat(Array.isArray(b) ? flatten(b) : b), []);
-
-		if (flatten(connectivity).reduce((prev, curr) => prev && curr)) {
-			this.setState({status: "You win!"});
-		}
+		this.tempColors = this.duplicate2dArray(colors);
 	}
 
 	// determine the next unique move
-	// traverses the tree of all possible sequences moves given a number of colors
+	// traverses the tree of all possible move sequences
 	// 
 	// currentPath (array<int>) the path leading to the current move
 	// numMoves (int) how many moves have been taken AKA tree depth
-	// starting arguments should be ([0], 1)
+	//
+	// arguments should be (currentPath, currentPath.length)
 	// all examples assume numColors = 3
 	findNextMove(currentPath, numMoves) {
-		const numColors = this.state.numColors;
+		const numColors = this.props.numColors;
 		let currentMove, nextMove;
 
 		if (currentPath.length == 0) {
@@ -255,15 +264,71 @@ class Game extends React.Component {
 		}
 		
 		return currentPath;
-
 	}
 
+	// find shortest solution
 	solve() {
 		let currentPath = [0];
-		while (currentPath.length < 4) {
-			currentPath = this.findNextMove(currentPath, currentPath.length);
-			console.log(currentPath)
+
+		while (!this.gameIsWon()) {
+			this.resetBoard(false);
+			currentPath.map(function(moveInt) {
+				this.changeFloodColor(this.numberToColor[moveInt]);
+				this.updateConnectivity();
+			}, this);
+
+			if (this.gameIsWon()) {
+				break;
+			} else {
+				currentPath = this.findNextMove(currentPath, currentPath.length);
+			}
 		}
+
+		let solutionText = currentPath.reduce((prev, curr) => prev.concat(this.numberToColor[curr] + ", "), "");
+		solutionText = solutionText.slice(0,-2)
+
+		this.resetBoard(true);
+		this.setState({solution: solutionText});
+	}
+
+	// checks if connectivity matrix is all true
+	gameIsWon() {
+		const connectivity = this.duplicate2dArray(this.connectivity);
+		const flatten = arr => arr.reduce((a, b) => a.concat(Array.isArray(b) ? flatten(b) : b), []);
+
+		if (flatten(connectivity).reduce((prev, curr) => prev && curr)) {
+			return true;
+		}
+
+		return false;
+	}
+
+	resetBoard(shouldDisplay) {
+		this.tempColors = this.startingColors;
+		this.connectivity = this.startingConnectivity;
+		this.updateConnectivity();
+		
+		if (shouldDisplay) {
+			this.displayTempColors();
+			this.setState({status: "Click any square"});
+		}
+	}
+
+	// creates a deep copy of a 2d array
+	duplicate2dArray(targetArray) {
+		let dupArray = new Array();
+		targetArray.map((e) => dupArray.push(e.slice()));
+		return dupArray;
+	}
+
+	// change flood color to match the square that was clicked
+	handleClick(x,y) {
+		this.changeFloodColor(this.state.colors[x][y]);
+		this.updateConnectivity();
+		if (this.gameIsWon()) {
+			this.setState({status: "You win!"});
+		}
+		this.displayTempColors();
 	}
 
 	render() {
@@ -272,6 +337,8 @@ class Game extends React.Component {
 				<Board colors={this.state.colors} onClick={(x,y) => this.handleClick(x,y)}/>
 				<div className="status">{this.state.status}</div>
 				<button className="solveBtn" onClick={() => this.solve()}>Solve</button>
+				<button className="resetBtn" onClick={() => this.resetBoard(true)}>Reset</button>
+				<div className="solution">{this.state.solution}</div>
 			</div>
 		);
 	}
