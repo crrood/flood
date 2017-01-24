@@ -20,82 +20,55 @@ function Square(props) {
 }
 
 // renders board based on info from Game
-
-var Board = function (_React$Component) {
-	_inherits(Board, _React$Component);
-
-	function Board() {
-		_classCallCheck(this, Board);
-
-		return _possibleConstructorReturn(this, (Board.__proto__ || Object.getPrototypeOf(Board)).apply(this, arguments));
-	}
-
-	_createClass(Board, [{
-		key: "renderSquare",
-		value: function renderSquare(x, y, color) {
-			var _this2 = this;
-
-			return React.createElement(Square, { color: color, onClick: function onClick() {
-					return _this2.props.onClick(x, y);
-				} });
-		}
-	}, {
-		key: "render",
-		value: function render() {
-			var _this3 = this;
-
-			var colors = this.props.colors.slice();
-			var style = {
-				height: this.props.colors.length * 52
-			};
-
+function Board(props) {
+	return React.createElement(
+		"div",
+		{ className: "board", style: { height: props.colors.length * 52 } },
+		props.colors.map(function (column, x) {
 			return React.createElement(
-				"div",
-				{ className: "board", style: style },
-				colors.map(function (column, x) {
+				"span",
+				{ className: "board-column", key: "column" + x },
+				column.map(function (color, y) {
 					return React.createElement(
-						"span",
-						{ className: "board-column", key: "column" + x },
-						column.map(function (color, y) {
-							return React.createElement(
-								"div",
-								{ className: "square", key: x + "" + y },
-								_this3.renderSquare(x, y, color)
-							);
-						})
+						"div",
+						{ className: "square", key: x + "" + y },
+						React.createElement(Square, { color: color, onClick: function onClick() {
+								return props.onClick(x, y);
+							} })
 					);
 				})
 			);
-		}
-	}]);
-
-	return Board;
-}(React.Component);
+		})
+	);
+}
 
 // game logic and state
 
-
-var Game = function (_React$Component2) {
-	_inherits(Game, _React$Component2);
+var Game = function (_React$Component) {
+	_inherits(Game, _React$Component);
 
 	function Game(props) {
 		_classCallCheck(this, Game);
 
-		var _this4 = _possibleConstructorReturn(this, (Game.__proto__ || Object.getPrototypeOf(Game)).call(this, props));
+		// initialize variables
+		var _this = _possibleConstructorReturn(this, (Game.__proto__ || Object.getPrototypeOf(Game)).call(this, props));
 
-		_this4.state = {
+		_this.state = {
 			status: "",
 			solutionMoves: "?",
 			solution: "",
 			moveNumber: 0,
 			colors: new Array()
 		};
+		_this.solution = "";
 
-		_this4.solution = "";
-
-		_this4.initializeBoard(true);
-		return _this4;
+		// initialize game state
+		_this.initializeBoard(true);
+		return _this;
 	}
+
+	// reset board and UI on size / numColor change
+
 
 	_createClass(Game, [{
 		key: "componentWillReceiveProps",
@@ -109,10 +82,10 @@ var Game = function (_React$Component2) {
 		value: function initializeBoard() {
 			var firstTime = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : false;
 
-			this.connectivity = Array(this.props.size);
+			// store starting board state for resets
 			this.startingConnectivity = Array(this.props.size);
 			this.startingColors = Array(this.props.size);
-			this.tempColors = Array(this.props.size);
+			this.connectivity = Array(this.props.size);
 
 			// initialize colors and connectivity arrays
 			var colorInt = void 0;
@@ -129,23 +102,35 @@ var Game = function (_React$Component2) {
 					this.connectivity[x][y] = false;
 				}
 			}
+
+			// variables to store current board state
 			this.tempColors = this.duplicate2dArray(this.startingColors);
 			this.startingConnectivity = this.duplicate2dArray(this.connectivity);
 
+			// initialize the connectivity matrix
 			this.updateConnectivity();
 
+			// update UI
+			// on initial load, these are handled in componentWillMount
 			if (!firstTime) {
 				this.setState({ moveNumber: 0, solution: "" });
 				this.displayTempColors();
 				this.solve();
 			}
 		}
+
+		// update UI and find solution
+
 	}, {
 		key: "componentWillMount",
 		value: function componentWillMount() {
 			this.displayTempColors();
 			this.solve();
 		}
+
+		// copies hidden color matrix to UI
+		// tempColors is used by all methods because it can be updated instantaneously
+
 	}, {
 		key: "displayTempColors",
 		value: function displayTempColors() {
@@ -172,19 +157,19 @@ var Game = function (_React$Component2) {
 				}
 			}
 
+			// starting from the top left, see which squares are connected and the same color
 			var square = void 0;
 			var queue = [{ x: 0, y: 0 }];
 			while (queue.length > 0) {
-				square = queue.shift();
+				// get the next connected square from the queue
+				square = queue.pop();
 
-				if (checked[square.x][square.y]) {
-					continue;
-				}
-
+				// see if it's the same color as top left
 				if (colors[square.x][square.y] === activeColor) {
 					connectivity[square.x][square.y] = true;
 
 					// add adjacent squares to queue
+					// if they haven't already been checked
 					if (square.x > 0 && !checked[square.x - 1][square.y]) {
 						queue.push({ x: square.x - 1, y: square.y });
 					}
@@ -199,6 +184,7 @@ var Game = function (_React$Component2) {
 					}
 				}
 
+				// mark square as checked
 				checked[square.x][square.y] = true;
 			}
 
@@ -206,6 +192,7 @@ var Game = function (_React$Component2) {
 		}
 
 		// change color of all squares which are connected to the top left
+		// does *not* update UI
 
 	}, {
 		key: "changeFloodColor",
@@ -302,22 +289,38 @@ var Game = function (_React$Component2) {
 			var currentPath = [0];
 			this.resetBoard();
 
-			if (BFS) {
-				// breadth first search
-				// guaranteed to find shortest path but very slow
-				while (true) {
-					// loop is exited via break if this.gameIsOver() == true
-					this.resetBoard();
-					currentPath.map(function (moveInt) {
-						this.changeFloodColor(moveInt);
-						this.updateConnectivity();
-					}, this);
+			while (true) {
+				// loop is exited via break if this.gameIsOver() == true
 
-					if (this.gameIsOver()) {
-						break;
-					} else {
-						currentPath = this.findNextMove(currentPath, currentPath.length);
-					}
+				// advance board state to match currentPath
+				this.resetBoard();
+				currentPath.map(function (moveInt) {
+					this.changeFloodColor(moveInt);
+					this.updateConnectivity();
+				}, this);
+
+				// check for victory
+				if (this.gameIsOver()) {
+					break;
+				}
+
+				if (BFS) {
+					// breadth first search
+					// guaranteed to find the shortest path but very slow
+					currentPath = this.findNextMove(currentPath, currentPath.length);
+				} else {
+					// TODO
+					// A* search
+					// might not find the shortest path but much faster
+
+					// psuedocode:
+					// find g and h for current board state
+					// add currentPath with g and h to heap
+					// set currentPath to next most likely move from heap
+					//
+					// h factors:
+					// number of squares adjacent to flood
+					// number of colors still active
 				}
 			}
 
@@ -325,10 +328,16 @@ var Game = function (_React$Component2) {
 				return prev.concat(numberToColor[curr] + ", ");
 			}, "").slice(0, -2);
 
+			// reset board to beginning of game
 			this.resetBoard();
+
+			// push changes to UI
 			this.displayTempColors();
 			this.setState({ solutionMoves: currentPath.length, status: "", moveNumber: 0 });
 		}
+
+		// show / hide solution in UI
+
 	}, {
 		key: "toggleSolution",
 		value: function toggleSolution() {
@@ -345,19 +354,16 @@ var Game = function (_React$Component2) {
 		key: "gameIsOver",
 		value: function gameIsOver() {
 			var connectivity = this.duplicate2dArray(this.connectivity);
-			var flatten = function flatten(arr) {
-				return arr.reduce(function (a, b) {
-					return a.concat(Array.isArray(b) ? flatten(b) : b);
-				}, []);
-			};
 
-			if (flatten(connectivity).reduce(function (prev, curr) {
-				return prev && curr;
-			})) {
-				return true;
+			for (var x = 0; x < connectivity.length; x++) {
+				for (var y = 0; y < connectivity[x].length; y++) {
+					if (!connectivity[x][y]) {
+						return false;
+					}
+				}
 			}
 
-			return false;
+			return true;
 		}
 	}, {
 		key: "resetBoard",
@@ -386,9 +392,12 @@ var Game = function (_React$Component2) {
 		value: function handleClick(x, y) {
 			var colors = this.duplicate2dArray(this.state.colors);
 			if (colors[x][y] != colors[0][0]) {
+
+				// update game board
 				this.changeFloodColor(colors[x][y]);
 				this.updateConnectivity();
 
+				// update game state
 				var newState = {};
 				newState["moveNumber"] = this.state.moveNumber + 1;
 
@@ -400,6 +409,7 @@ var Game = function (_React$Component2) {
 					}
 				}
 
+				// push changes to UI
 				this.setState(newState);
 				this.displayTempColors();
 			}
@@ -407,14 +417,17 @@ var Game = function (_React$Component2) {
 	}, {
 		key: "resetBtnClicked",
 		value: function resetBtnClicked() {
+			// reset game state
 			this.resetBoard();
+
+			// push changes to UI
 			this.displayTempColors();
 			this.setState({ status: "", moveNumber: 0 });
 		}
 	}, {
 		key: "render",
 		value: function render() {
-			var _this5 = this;
+			var _this2 = this;
 
 			var solutionBtnStyle = {
 				backgroundColor: this.state.solution == "" ? "white" : "gray"
@@ -423,7 +436,7 @@ var Game = function (_React$Component2) {
 				"div",
 				null,
 				React.createElement(Board, { colors: this.state.colors, onClick: function onClick(x, y) {
-						return _this5.handleClick(x, y);
+						return _this2.handleClick(x, y);
 					} }),
 				React.createElement(
 					"div",
@@ -431,21 +444,21 @@ var Game = function (_React$Component2) {
 					React.createElement(
 						"button",
 						{ className: "controlBtn", onClick: function onClick() {
-								return _this5.initializeBoard();
+								return _this2.initializeBoard();
 							} },
 						"New"
 					),
 					React.createElement(
 						"button",
 						{ className: "controlBtn", onClick: function onClick() {
-								return _this5.resetBtnClicked();
+								return _this2.resetBtnClicked();
 							} },
 						"Restart"
 					),
 					React.createElement(
 						"button",
 						{ className: "controlBtn", style: solutionBtnStyle, onClick: function onClick() {
-								return _this5.toggleSolution();
+								return _this2.toggleSolution();
 							} },
 						"Solution"
 					),
@@ -479,19 +492,19 @@ var Game = function (_React$Component2) {
 	return Game;
 }(React.Component);
 
-var Container = function (_React$Component3) {
-	_inherits(Container, _React$Component3);
+var Container = function (_React$Component2) {
+	_inherits(Container, _React$Component2);
 
 	function Container(props) {
 		_classCallCheck(this, Container);
 
-		var _this6 = _possibleConstructorReturn(this, (Container.__proto__ || Object.getPrototypeOf(Container)).call(this, props));
+		var _this3 = _possibleConstructorReturn(this, (Container.__proto__ || Object.getPrototypeOf(Container)).call(this, props));
 
-		_this6.state = {
+		_this3.state = {
 			gameSize: 5,
 			numColors: 4
 		};
-		return _this6;
+		return _this3;
 	}
 
 	_createClass(Container, [{
@@ -507,7 +520,7 @@ var Container = function (_React$Component3) {
 	}, {
 		key: "render",
 		value: function render() {
-			var _this7 = this;
+			var _this4 = this;
 
 			return React.createElement(
 				"div",
@@ -515,7 +528,7 @@ var Container = function (_React$Component3) {
 				React.createElement(
 					"select",
 					{ name: "gameSize", defaultValue: "5", onChange: function onChange(e) {
-							return _this7.handleGameSizeChange(e);
+							return _this4.handleGameSizeChange(e);
 						} },
 					React.createElement(
 						"option",
@@ -556,7 +569,7 @@ var Container = function (_React$Component3) {
 				React.createElement(
 					"select",
 					{ name: "numColors", defaultValue: "4", onChange: function onChange(e) {
-							return _this7.handleNumColorsChange(e);
+							return _this4.handleNumColorsChange(e);
 						} },
 					React.createElement(
 						"option",
