@@ -71,7 +71,7 @@
 // display color and send it back up on click
 function Square(props) {
 	return (
-		<button className="square" style={{backgroundColor: props.color,}} onClick={() => props.onClick()}></button>
+		<button className="square" style={{backgroundColor: numberToColor[props.color],}} onClick={() => props.onClick()}></button>
 	);
 }
 
@@ -113,16 +113,6 @@ class Game extends React.Component {
 			colors: new Array(),
 		}
 
-		this.numberToColor = {
-			0: "red",
-			1: "green",
-			2: "blue",
-			3: "purple",
-			4: "gray",
-			5: "orange",
-			6: "yellow"
-		}
-
 		this.solution = "";
 
 		this.initializeBoard(true);
@@ -150,8 +140,8 @@ class Game extends React.Component {
 
 				// randomize starting state
 				colorInt = Math.floor(Math.random() * this.props.numColors);
-				this.state.colors[x][y] = this.numberToColor[colorInt];
-				this.startingColors[x][y] = this.numberToColor[colorInt];
+				this.state.colors[x][y] = colorInt;
+				this.startingColors[x][y] = colorInt;
 				this.connectivity[x][y] = false;
 			}
 		}
@@ -163,7 +153,7 @@ class Game extends React.Component {
 		if (!firstTime) {
 			this.setState({moveNumber: 0, solution: ""});
 			this.displayTempColors();
-			this.solve();
+			//this.solve();
 		}
 	}
 
@@ -311,7 +301,7 @@ class Game extends React.Component {
 		while (!this.gameIsOver()) {
 			this.resetBoard(false);
 			currentPath.map(function(moveInt) {
-				this.changeFloodColor(this.numberToColor[moveInt]);
+				this.changeFloodColor(moveInt);
 				this.updateConnectivity();
 			}, this);
 
@@ -323,7 +313,7 @@ class Game extends React.Component {
 		}
 
 		this.resetBoard(true);
-		this.solution = currentPath.reduce((prev, curr) => prev.concat(this.numberToColor[curr] + ", "), "").slice(0,-2);
+		this.solution = currentPath.reduce((prev, curr) => prev.concat(numberToColor[curr] + ", "), "").slice(0,-2);
 		
 		this.setState({solutionMoves: currentPath.length});
 	}
@@ -450,6 +440,16 @@ class Container extends React.Component {
    		</div>
    	);
 	};
+}
+
+var numberToColor = {
+	0: "red",
+	1: "green",
+	2: "blue",
+	3: "purple",
+	4: "gray",
+	5: "orange",
+	6: "black",
 }
 
 ReactDOM.render(
