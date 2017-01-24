@@ -5,6 +5,8 @@
 	<script src="https://unpkg.com/react@latest/dist/react.js"></script>
    <script src="https://unpkg.com/react-dom@latest/dist/react-dom.js"></script>
 	<script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+	<script src="../require.js"></script>
+
 
 	<style>
 		#container {
@@ -67,6 +69,9 @@
 
 
 <script type='text/babel'>
+
+import React from 'react';
+import ReactDOM from 'react-dom';
 
 // display color and send it back up on click
 function Square(props) {
@@ -153,7 +158,7 @@ class Game extends React.Component {
 		if (!firstTime) {
 			this.setState({moveNumber: 0, solution: ""});
 			this.displayTempColors();
-			//this.solve();
+			this.solve();
 		}
 	}
 
@@ -176,10 +181,10 @@ class Game extends React.Component {
 
 		// keep track of which squares have already been checked
 		let checked = Array(size);
-		for (let i = 0; i < size; i++) {
-			checked[i] = Array(size)
-			for (let j = 0; j < size; j++) {
-				checked[i][j] = false;
+		for (let x = 0; x < size; x++) {
+			checked[x] = Array(size)
+			for (let y = 0; y < size; y++) {
+				checked[x][y] = false;
 			}
 		}
 
@@ -188,7 +193,6 @@ class Game extends React.Component {
 		while (queue.length > 0) {
 			square = queue.shift();
 
-			// NOTE could be optimized to compare against the checked matrix prior to pushing
 			if (checked[square.x][square.y]) {
 				continue;
 			}
@@ -197,10 +201,10 @@ class Game extends React.Component {
 				connectivity[square.x][square.y] = true;
 
 				// add adjacent squares to queue
-				if (square.x > 0) { queue.push({x: (square.x - 1), y: square.y}); }
-				if (square.x < size - 1) { queue.push({x: (square.x + 1), y: square.y}); }
-				if (square.y > 0) { queue.push({x: square.x, y: (square.y - 1)}); }
-				if (square.y < size - 1) { queue.push({x: square.x, y: (square.y + 1)}); }
+				if (square.x > 0 && !checked[square.x - 1][square.y]) { queue.push({x: (square.x - 1), y: square.y}); }
+				if (square.x < size - 1 && !checked[square.x + 1][square.y]) { queue.push({x: (square.x + 1), y: square.y}); }
+				if (square.y > 0 && !checked[square.x][square.y - 1]) { queue.push({x: square.x, y: (square.y - 1)}); }
+				if (square.y < size - 1 && !checked[square.x][square.y + 1]) { queue.push({x: square.x, y: (square.y + 1)}); }
 			}
 
 			checked[square.x][square.y] = true;
@@ -215,10 +219,10 @@ class Game extends React.Component {
 		const connectivity = this.duplicate2dArray(this.connectivity);
 		const size = this.props.size;
 
-		for (let i = 0; i < size; i++) {
-			for (let j = 0; j < size; j++) {
-				if (connectivity[i][j]) {
-					colors[i][j] = newColor;
+		for (let x = 0; x < size; x++) {
+			for (let y = 0; y < size; y++) {
+				if (connectivity[x][y]) {
+					colors[x][y] = newColor;
 				}
 			}
 		}
@@ -293,29 +297,35 @@ class Game extends React.Component {
 	}
 
 	// find shortest solution
-	solve() {
+	// uses BFS and is very slow -- O((numColors-1)^gameSize)
+	solve(BFS = true) {
 		let newState = {};
 		let currentPath = [0];
-		this.resetBoard(false);
+		this.resetBoard();
 
-		while (!this.gameIsOver()) {
-			this.resetBoard(false);
-			currentPath.map(function(moveInt) {
-				this.changeFloodColor(moveInt);
-				this.updateConnectivity();
-			}, this);
+		if (BFS) {
+			// breadth first search
+			// guaranteed to find shortest path but very slow
+			while (true) { // loop is exited via break if this.gameIsOver() == true
+				this.resetBoard();
+				currentPath.map(function(moveInt) {
+					this.changeFloodColor(moveInt);
+					this.updateConnectivity();
+				}, this);
 
-			if (this.gameIsOver()) {
-				break;
-			} else {
-				currentPath = this.findNextMove(currentPath, currentPath.length);
+				if (this.gameIsOver()) {
+					break;
+				} else {
+					currentPath = this.findNextMove(currentPath, currentPath.length);
+				}
 			}
 		}
 
-		this.resetBoard(true);
 		this.solution = currentPath.reduce((prev, curr) => prev.concat(numberToColor[curr] + ", "), "").slice(0,-2);
 		
-		this.setState({solutionMoves: currentPath.length});
+		this.resetBoard();
+		this.displayTempColors();
+		this.setState({solutionMoves: currentPath.length, status: "", moveNumber: 0});
 	}
 
 	toggleSolution() {
@@ -338,15 +348,10 @@ class Game extends React.Component {
 		return false;
 	}
 
-	resetBoard(shouldDisplay) {
+	resetBoard() {
 		this.tempColors = this.startingColors;
 		this.connectivity = this.startingConnectivity;
 		this.updateConnectivity();
-		
-		if (shouldDisplay) {
-			this.displayTempColors();
-			this.setState({status: "", moveNumber: 0});
-		}
 	}
 
 	// creates a deep copy of a 2d array
@@ -379,6 +384,12 @@ class Game extends React.Component {
 		}
 	}
 
+	resetBtnClicked() {
+		this.resetBoard();
+		this.displayTempColors();
+		this.setState({status: "", moveNumber: 0});
+	}
+
 	render() {
 		let solutionBtnStyle = {
 			backgroundColor: this.state.solution == "" ? "white" : "gray", 
@@ -388,7 +399,7 @@ class Game extends React.Component {
 				<Board colors={this.state.colors} onClick={(x,y) => this.handleClick(x,y)}/>
 				<div className="controlContainer">
 					<button className="controlBtn" onClick={() => this.initializeBoard()}>New</button>
-					<button className="controlBtn" onClick={() => this.resetBoard(true)}>Restart</button>
+					<button className="controlBtn" onClick={() => this.resetBtnClicked()}>Restart</button>
 					<button className="controlBtn" style={solutionBtnStyle} onClick={() => this.toggleSolution()}>Solution</button>
 					<div className="outputText" id="moveNumber">Move: {this.state.moveNumber}</div>
 					<div className="outputText" id="solutionMoves">Goal: {this.state.solutionMoves}</div>
