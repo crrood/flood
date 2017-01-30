@@ -1,5 +1,6 @@
 var React = require("react");
 var ReactDOM = require("react-dom");
+var Heap = require("collections/heap");
 
 // display color and send it back up on click
 function Square(props) {
@@ -24,6 +25,10 @@ function Board(props) {
 }
 
 // game logic and state
+//
+// props
+// size: width of game board
+// numColors: number of possible colors 
 class Game extends React.Component {
 
 	constructor(props) {
@@ -161,7 +166,133 @@ class Game extends React.Component {
 		this.tempColors = this.duplicate2dArray(colors);
 	}
 
-	// determine the next unique move
+	// find shortest solution
+	// for simpler games uses BFS to always find the shortest solution
+	// for more complex games uses A* to solve in a reasonable amount of time
+	solve() {
+		// variables for BFS
+		let currentPath = new Array();
+
+		// variables for A* search
+		let h, boardHash, nextChild;
+		let closedList = {};
+		let children = new Array();
+		let numConnected, numAdjacent, numColorsRemaining;
+		let numConnectedWeight = 0.15;
+		let numAdjacentWeight = 0.15;
+		let numColorsRemainingWeight = -5;
+		let colorPresent = new Array(this.props.numColors);
+
+		let adjacency = new Array();
+		for (let i = 0; i < this.props.size; i++) {
+			adjacency.push(new Array(this.props.size));
+		}
+
+		let heap = new Heap([], null, (a,b) => (b.path.length + b.h) - (a.path.length + a.h));
+
+		// start from the beginning
+		this.resetBoard();
+
+		while (true) { // loop is exited via break if this.gameIsOver() == true
+			// DEBUG
+			if (this.props.size < 5 && this.props.numColors < 5) {
+				// breadth first search
+				// guaranteed to find the shortest path but very slow
+				currentPath = this.findNextMove(currentPath, currentPath.length);
+
+			} else {
+				// A* search
+				// might not find the shortest path but much faster
+				
+				// evaluate h factors:
+				// number of squares in flood
+				// number of squares adjacent to flood
+				// number of colors still active
+
+				// reset variables
+				numConnected = 0;
+				colorPresent = new Array(this.props.numColors);
+				for (let i = 0; i < this.props.numColors; i++) {
+					colorPresent[i] = false;
+				}
+				adjacency = new Array(this.props.size);
+				for (let i = 0; i < this.props.size; i++) {
+					adjacency[i] = new Array(this.props.size);
+				}
+
+				// evaluate h
+				for (let x = 0; x < this.props.size; x++) {
+					for (let y = 0; y < this.props.size; y++) {
+						if (this.connectivity[x][y] === true) {
+							// counter for how many squares are in the flood
+							numConnected++;
+
+							// matrix to keep track of how many squares are adjacent to the flood 
+							adjacency[x][y] = true;
+							if (x > 0) { adjacency[x - 1][y] = true; }
+							if (x < this.props.size - 1) { adjacency[x + 1][y] = true; }
+							if (y > 0) { adjacency[x][y - 1] = true; }
+							if (y < this.props.size - 1) { adjacency[x][y + 1] = true; }
+						} else {
+							// not counting the flood,
+							// keep track of how many colors are left on the board
+							colorPresent[this.tempColors[x][y]] = true;
+						}
+					}
+				}
+				numColorsRemaining = colorPresent.reduce((acc, cur) => acc + (cur ? 1 : 0), 0);
+				numAdjacent = adjacency.map((column) => column.reduce((acc, cur) => acc + (cur ? 1 : 0), 0)).reduce((acc, cur) => acc + cur);
+				numAdjacent = numAdjacent - numConnected;
+				h = this.props.size - (numAdjacentWeight * numAdjacent + numColorsRemainingWeight * numColorsRemaining + numConnectedWeight * numConnected);
+
+				// check if there's a shorter path to the same state in closedList
+				boardHash = this.getBoardHash().toString();
+				if (closedList[boardHash] === undefined || closedList[boardHash].length > currentPath.length) {
+					
+					// replace / create entry in closedList
+					closedList[boardHash] = currentPath;
+
+					// add the current state to the heap to evaluate children later
+					heap.push({path: currentPath, h: h});
+				}
+
+				// find next path to evaluate
+				// takes a sibling node if possible
+				// otherwise looks for the next best option
+				nextChild = children.pop();
+				if (nextChild === undefined) {
+					children = this.findChildren(heap.pop()["path"]);
+					currentPath = children.pop();
+				} else {
+					currentPath = nextChild;
+				}
+			}
+
+			// advance board state to match currentPath
+			this.resetBoard();
+			currentPath.map(function(moveInt) {
+				this.changeFloodColor(moveInt);
+				this.updateConnectivity();
+			}, this);
+
+			// check for solution
+			if (this.gameIsOver()) {
+				break;
+			}
+		}
+
+		// convert currentPath from numbers to colors (0 -> "red", etc)
+		this.solution = currentPath.reduce((prev, curr) => prev.concat(numberToColor[curr] + ", "), "").slice(0,-2);
+		
+		// reset board to beginning of game
+		this.resetBoard();
+
+		// push changes to UI
+		this.displayTempColors();
+		this.setState({solutionMoves: currentPath.length, status: "", moveNumber: 0});
+	}
+
+	// determine the next unique move for BFS
 	// traverses the tree of all possible move sequences
 	// 
 	// currentPath (array<int>) the path leading to the current move
@@ -227,55 +358,29 @@ class Game extends React.Component {
 		return currentPath;
 	}
 
-	// find shortest solution
-	// uses BFS and is very slow -- O((numColors-1)^gameSize)
-	solve(BFS = true) {
-		let newState = {};
-		let currentPath = [0];
-		this.resetBoard();
-
-		while (true) { // loop is exited via break if this.gameIsOver() == true
-
-			// advance board state to match currentPath
-			this.resetBoard();
-			currentPath.map(function(moveInt) {
-				this.changeFloodColor(moveInt);
-				this.updateConnectivity();
-			}, this);
-
-			// check for victory
-			if (this.gameIsOver()) {
-				break;
-			}
-
-			if (BFS) {
-				// breadth first search
-				// guaranteed to find the shortest path but very slow
-				currentPath = this.findNextMove(currentPath, currentPath.length);
-			} else {
-				// TODO
-				// A* search
-				// might not find the shortest path but much faster
-
-				// psuedocode:
-				// find g and h for current board state
-				// add currentPath with g and h to heap
-				// set currentPath to next most likely move from heap
-				//
-				// h factors:
-				// number of squares adjacent to flood
-				// number of colors still active
+	// returns list of potential next moves for A* search
+	findChildren(path) {
+		const lastMove = path[path.length - 1];
+		let children = new Array(this.props.numColors - 1);
+		for (let i = 0; i < this.props.numColors; i++) {
+			if (i != lastMove) {
+				children.push(path.concat(i));
 			}
 		}
+		return children;
+	}
 
-		this.solution = currentPath.reduce((prev, curr) => prev.concat(numberToColor[curr] + ", "), "").slice(0,-2);
-		
-		// reset board to beginning of game
-		this.resetBoard();
-
-		// push changes to UI
-		this.displayTempColors();
-		this.setState({solutionMoves: currentPath.length, status: "", moveNumber: 0});
+	// converts board state to a unique integer
+	// by multiplying each square's colorInt by the nth prime
+	getBoardHash() {
+		const primeList = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199, 211, 223, 227, 229, 233, 239, 241, 251, 257, 263, 269, 271, 277, 281, 283, 293, 307, 311, 313, 317, 331, 337, 347, 349, 353, 359, 367, 373, 379, 383, 389, 397, 401, 409, 419, 421, 431, 433, 439, 443, 449, 457, 461, 463, 467, 479, 487, 491, 499, 503, 509, 521, 523, 541, 547, 557, 563, 569, 571, 577, 587, 593, 599, 601, 607, 613, 617, 619, 631, 641, 643, 647, 653, 659, 661, 673, 677, 683, 691, 701, 709, 719, 727, 733, 739, 743, 751, 757, 761, 769, 773, 787, 797, 809, 811, 821, 823, 827, 829, 839, 853, 857, 859, 863, 877, 881, 883, 887, 907, 911, 919, 929, 937, 941, 947, 953, 967, 971, 977, 983, 991, 997, 1009, 1013, 1019, 1021, 1031, 1033, 1039]
+		let result = 0;
+		let i = 10;
+		this.tempColors.map((column) => 
+			column.map((squareColor) =>
+				result += squareColor * this.props.numColors * primeList[i++]
+		));
+		return result;
 	}
 
 	// show / hide solution in UI
@@ -285,6 +390,7 @@ class Game extends React.Component {
 		} else {
 			this.setState({solution: ""});
 		}
+
 	}
 
 	// checks if connectivity matrix is all true
@@ -377,7 +483,7 @@ class Container extends React.Component {
 		super(props);
 		this.state = {
 			gameSize: 5,
-			numColors: 4,
+			numColors: 3,
 		}
 	}
 
@@ -392,7 +498,7 @@ class Container extends React.Component {
 	render() {
 		return (
 			<div>
-	   		<select name="gameSize" defaultValue="5" onChange={(e) => this.handleGameSizeChange(e)}>
+	   		<select name="gameSize" defaultValue={this.state.gameSize} onChange={(e) => this.handleGameSizeChange(e)}>
 	   			<option value="4">4x4</option>
 	   			<option value="5">5x5</option>
 	   			<option value="6">6x6</option>
@@ -401,7 +507,7 @@ class Container extends React.Component {
 	   			<option value="10">10x10</option>
 	   			<option value="12">12x12</option>
 	   		</select>
-	   		<select name="numColors" defaultValue="4" onChange={(e) => this.handleNumColorsChange(e)}>
+	   		<select name="numColors" defaultValue={this.state.numColors} onChange={(e) => this.handleNumColorsChange(e)}>
 	   			<option value="3">3</option>
 	   			<option value="4">4</option>
 	   			<option value="5">5</option>
