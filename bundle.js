@@ -38,7 +38,7 @@ function Board(props) {
 						"div",
 						{ className: "square", key: x + "" + y },
 						React.createElement(Square, { color: color, onClick: function onClick() {
-								return props.onClick(x, y);
+								return props.onClick(color);
 							} })
 					);
 				})
@@ -538,20 +538,20 @@ var Game = function (_React$Component) {
 
 	}, {
 		key: "handleClick",
-		value: function handleClick(x, y) {
+		value: function handleClick(colorInt) {
 			var colors = this.duplicate2dArray(this.state.colors);
-			if (colors[x][y] != colors[0][0]) {
+			if (colorInt != colors[0][0]) {
 				var newState = {};
 
 				// update game board
-				this.changeFloodColor(colors[x][y]);
+				this.changeFloodColor(colorInt);
 				this.updateConnectivity();
 
 				// increment moveNumber
 				newState["moveNumber"] = this.state.moveNumber + 1;
 
 				// update moveHistory
-				this.moveHistory[this.state.moveNumber] = colors[x][y];
+				this.moveHistory[this.state.moveNumber] = colorInt;
 				this.moveHistory = this.moveHistory.slice(0, this.state.moveNumber + 1);
 
 				if (this.gameIsOver()) {
@@ -606,8 +606,8 @@ var Game = function (_React$Component) {
 			return React.createElement(
 				"div",
 				null,
-				React.createElement(Board, { colors: this.state.colors, onClick: function onClick(x, y) {
-						return _this3.handleClick(x, y);
+				React.createElement(Board, { colors: this.state.colors, onClick: function onClick(colorInt) {
+						return _this3.handleClick(colorInt);
 					} }),
 				React.createElement(
 					"div",
@@ -643,7 +643,9 @@ var Game = function (_React$Component) {
 						"Goal: ",
 						this.state.solutionMoves
 					),
-					React.createElement(SolutionText, { solution: this.state.solution }),
+					React.createElement(Solution, { solution: this.state.solution, onClick: function onClick(colorInt) {
+							return _this3.handleClick(colorInt);
+						} }),
 					React.createElement(
 						"div",
 						{ id: "status" },
@@ -657,22 +659,16 @@ var Game = function (_React$Component) {
 	return Game;
 }(React.Component);
 
-function SolutionText(props) {
+function Solution(props) {
 	// convert currentPath from numbers to colors (0 -> "red", etc)
 	// and color code it for display
 	return React.createElement(
 		"div",
 		{ className: "outputText" },
-		props.solution.map(function (moveInt, index) {
-			var style = {
-				color: numberToColor[moveInt]
-			};
-			return React.createElement(
-				"span",
-				{ key: index, style: style },
-				numberToColor[moveInt],
-				" "
-			);
+		props.solution.map(function (colorInt, index) {
+			return React.createElement(Square, { key: index, color: colorInt, onClick: function onClick() {
+					return props.onClick(colorInt);
+				} });
 		})
 	);
 }

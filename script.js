@@ -20,7 +20,7 @@ function Board(props) {
 			{props.colors.map((column, x) =>
 				<span className="board-column" key={"column"+x}>{column.map((color, y) => 
 				   <div className="square" key={x+""+y}>
-				   	<Square color={color} onClick={() => props.onClick(x,y)}/>
+				   	<Square color={color} onClick={() => props.onClick(color)}/>
 			   	</div>)}
 				</span>
 			)}
@@ -436,20 +436,20 @@ class Game extends React.Component {
 	}
 
 	// change flood color to match the square that was clicked
-	handleClick(x,y) {
+	handleClick(colorInt) {
 		const colors = this.duplicate2dArray(this.state.colors);
-		if (colors[x][y] != colors[0][0]) {
+		if (colorInt != colors[0][0]) {
 			let newState = {};
 
 			// update game board
-			this.changeFloodColor(colors[x][y]);
+			this.changeFloodColor(colorInt);
 			this.updateConnectivity();
 
 			// increment moveNumber
 			newState["moveNumber"] = this.state.moveNumber + 1;
 
 			// update moveHistory
-			this.moveHistory[this.state.moveNumber] = colors[x][y];
+			this.moveHistory[this.state.moveNumber] = colorInt;
 			this.moveHistory = this.moveHistory.slice(0, this.state.moveNumber + 1);
 
 			if (this.gameIsOver()) {
@@ -497,7 +497,7 @@ class Game extends React.Component {
 	render() {
 		return (
 			<div>
-				<Board colors={this.state.colors} onClick={(x,y) => this.handleClick(x,y)}/>
+				<Board colors={this.state.colors} onClick={(colorInt) => this.handleClick(colorInt)}/>
 				<div className="controlContainer">
 					<div className="moveControlContainer">
 						<ControlBtn active={this.state.moveNumber > 0} onClick={() => this.undoBtnClicked()} text="Undo"/>
@@ -508,7 +508,7 @@ class Game extends React.Component {
 					<ControlBtn active={this.state.solution == ""} onClick={() => this.toggleSolution()} text="Solution"/>
 					<div className="outputText" id="moveNumber">Move: {this.state.moveNumber}</div>
 					<div className="outputText" id="solutionMoves">Goal: {this.state.solutionMoves}</div>
-					<SolutionText solution={this.state.solution}/>
+					<Solution solution={this.state.solution} onClick={(colorInt) => this.handleClick(colorInt)}/>
 					<div id="status">{this.state.status}</div>
 				</div>
 			</div>
@@ -516,16 +516,13 @@ class Game extends React.Component {
 	}
 }
 
-function SolutionText(props) {
+function Solution(props) {
 	// convert currentPath from numbers to colors (0 -> "red", etc)
 	// and color code it for display
 	return (
 		<div className="outputText">
-			{props.solution.map((moveInt, index) => {
-				let style = {
-					color: numberToColor[moveInt]
-				};
-				return <span key={index} style={style}>{numberToColor[moveInt]} </span>
+			{props.solution.map((colorInt, index) => {
+				return <Square key={index} color={colorInt} onClick={() => props.onClick(colorInt)}/>
 			})}
 		</div>
 	);
