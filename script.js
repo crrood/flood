@@ -542,7 +542,7 @@ class Container extends React.Component {
 	constructor(props) {
 		super(props);
 		this.state = {
-			gameSize: 5,
+			gameSize: 8,
 			numColors: 5,
 		}
 	}

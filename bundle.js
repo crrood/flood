@@ -701,7 +701,7 @@ var Container = function (_React$Component2) {
 		var _this4 = _possibleConstructorReturn(this, (Container.__proto__ || Object.getPrototypeOf(Container)).call(this, props));
 
 		_this4.state = {
-			gameSize: 5,
+			gameSize: 8,
 			numColors: 5
 		};
 		return _this4;
