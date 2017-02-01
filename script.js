@@ -1,3 +1,7 @@
+// TODO
+// back and forward buttons
+// color code solution text
+
 var React = require("react");
 var ReactDOM = require("react-dom");
 var Heap = require("collections/heap");
@@ -26,7 +30,7 @@ function Board(props) {
 
 // game logic and state
 //
-// props
+// props:
 // size: width of game board
 // numColors: number of possible colors 
 class Game extends React.Component {
@@ -43,6 +47,7 @@ class Game extends React.Component {
 			colors: new Array(),
 		}
 		this.solution = "";
+		this.moveHistory = new Array();
 
 		// initialize game state
 		this.initializeBoard(true);
@@ -194,7 +199,6 @@ class Game extends React.Component {
 		this.resetBoard();
 
 		while (true) { // loop is exited via break if this.gameIsOver() == true
-			// DEBUG
 			if (this.props.size < 5 && this.props.numColors < 5) {
 				// breadth first search
 				// guaranteed to find the shortest path but very slow
@@ -269,11 +273,7 @@ class Game extends React.Component {
 			}
 
 			// advance board state to match currentPath
-			this.resetBoard();
-			currentPath.map(function(moveInt) {
-				this.changeFloodColor(moveInt);
-				this.updateConnectivity();
-			}, this);
+			this.setBoardStateTo(currentPath);
 
 			// check for solution
 			if (this.gameIsOver()) {
@@ -370,6 +370,15 @@ class Game extends React.Component {
 		return children;
 	}
 
+	// replicates the moves given as parameter
+	setBoardStateTo(path) {
+		this.resetBoard();
+		path.map(function(moveInt) {
+			this.changeFloodColor(moveInt);
+			this.updateConnectivity();
+		}, this);
+	}
+
 	// converts board state to a unique integer
 	// by multiplying each square's colorInt by the nth prime
 	getBoardHash() {
@@ -408,6 +417,7 @@ class Game extends React.Component {
 		return true;
 	}
 
+	// change board back to how it was at the start of the game
 	resetBoard() {
 		this.tempColors = this.startingColors;
 		this.connectivity = this.startingConnectivity;
@@ -425,14 +435,18 @@ class Game extends React.Component {
 	handleClick(x,y) {
 		const colors = this.duplicate2dArray(this.state.colors);
 		if (colors[x][y] != colors[0][0]) {
+			let newState = {};
 
 			// update game board
 			this.changeFloodColor(colors[x][y]);
 			this.updateConnectivity();
 
-			// update game state
-			let newState = {};
+			// increment moveNumber
 			newState["moveNumber"] = this.state.moveNumber + 1;
+
+			// update moveHistory
+			this.moveHistory[this.state.moveNumber] = colors[x][y];
+			this.moveHistory = this.moveHistory.slice(0, this.state.moveNumber + 1);
 
 			if (this.gameIsOver()) {
 				if (this.state.moveNumber + 1 == this.state.solutionMoves) {
@@ -454,17 +468,46 @@ class Game extends React.Component {
 
 		// push changes to UI
 		this.displayTempColors();
+		this.moveHistory = new Array();
 		this.setState({status: "", moveNumber: 0});
+	}
+
+	undoBtnClicked() {
+		// roll back the last move, if possible
+		if (this.state.moveNumber > 0) {
+			this.setBoardStateTo(this.moveHistory.slice(0, this.state.moveNumber - 1));
+			this.displayTempColors();
+			this.setState({moveNumber: this.state.moveNumber - 1});
+		}
+	}
+
+	redoBtnClicked() {
+		// move forward a move, if the undo button has been clicked at least once
+		if (this.state.moveNumber < this.moveHistory.length) {
+			this.setBoardStateTo(this.moveHistory.slice(0, this.state.moveNumber + 1));
+			this.displayTempColors();
+			this.setState({moveNumber: this.state.moveNumber + 1});
+		}
 	}
 
 	render() {
 		let solutionBtnStyle = {
-			backgroundColor: this.state.solution == "" ? "white" : "gray", 
+			backgroundColor: this.state.solution == "" ? "white" : "gray" 
 		};
+		let undoBtnStyle = {
+			backgroundColor: this.state.moveNumber > 0 ? "white" : "gray"
+		};
+		let redoBtnStyle = {
+			backgroundColor: this.state.moveNumber < this.moveHistory.length ? "white" : "gray"
+		}
 		return (
 			<div>
 				<Board colors={this.state.colors} onClick={(x,y) => this.handleClick(x,y)}/>
 				<div className="controlContainer">
+					<div className="moveControlContainer">
+						<button className="controlBtn" style={undoBtnStyle} onClick={() => this.undoBtnClicked()}>Undo</button>
+						<button className="controlBtn" style={redoBtnStyle} onClick={() => this.redoBtnClicked()}>Redo</button>
+					</div>
 					<button className="controlBtn" onClick={() => this.initializeBoard()}>New</button>
 					<button className="controlBtn" onClick={() => this.resetBtnClicked()}>Restart</button>
 					<button className="controlBtn" style={solutionBtnStyle} onClick={() => this.toggleSolution()}>Solution</button>
@@ -483,7 +526,7 @@ class Container extends React.Component {
 		super(props);
 		this.state = {
 			gameSize: 5,
-			numColors: 3,
+			numColors: 5,
 		}
 	}
 

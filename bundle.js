@@ -9,6 +9,10 @@ function _possibleConstructorReturn(self, call) { if (!self) { throw new Referen
 
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
+// TODO
+// back and forward buttons
+// color code solution text
+
 var React = require("react");
 var ReactDOM = require("react-dom");
 var Heap = require("collections/heap");
@@ -45,7 +49,7 @@ function Board(props) {
 
 // game logic and state
 //
-// props
+// props:
 // size: width of game board
 // numColors: number of possible colors 
 
@@ -66,6 +70,7 @@ var Game = function (_React$Component) {
 			colors: new Array()
 		};
 		_this.solution = "";
+		_this.moveHistory = new Array();
 
 		// initialize game state
 		_this.initializeBoard(true);
@@ -255,7 +260,6 @@ var Game = function (_React$Component) {
 
 			while (true) {
 				// loop is exited via break if this.gameIsOver() == true
-				// DEBUG
 				if (this.props.size < 5 && this.props.numColors < 5) {
 					// breadth first search
 					// guaranteed to find the shortest path but very slow
@@ -345,11 +349,7 @@ var Game = function (_React$Component) {
 				}
 
 				// advance board state to match currentPath
-				this.resetBoard();
-				currentPath.map(function (moveInt) {
-					this.changeFloodColor(moveInt);
-					this.updateConnectivity();
-				}, this);
+				this.setBoardStateTo(currentPath);
 
 				// check for solution
 				if (this.gameIsOver()) {
@@ -450,6 +450,18 @@ var Game = function (_React$Component) {
 			return children;
 		}
 
+		// replicates the moves given as parameter
+
+	}, {
+		key: "setBoardStateTo",
+		value: function setBoardStateTo(path) {
+			this.resetBoard();
+			path.map(function (moveInt) {
+				this.changeFloodColor(moveInt);
+				this.updateConnectivity();
+			}, this);
+		}
+
 		// converts board state to a unique integer
 		// by multiplying each square's colorInt by the nth prime
 
@@ -498,6 +510,9 @@ var Game = function (_React$Component) {
 
 			return true;
 		}
+
+		// change board back to how it was at the start of the game
+
 	}, {
 		key: "resetBoard",
 		value: function resetBoard() {
@@ -525,14 +540,18 @@ var Game = function (_React$Component) {
 		value: function handleClick(x, y) {
 			var colors = this.duplicate2dArray(this.state.colors);
 			if (colors[x][y] != colors[0][0]) {
+				var newState = {};
 
 				// update game board
 				this.changeFloodColor(colors[x][y]);
 				this.updateConnectivity();
 
-				// update game state
-				var newState = {};
+				// increment moveNumber
 				newState["moveNumber"] = this.state.moveNumber + 1;
+
+				// update moveHistory
+				this.moveHistory[this.state.moveNumber] = colors[x][y];
+				this.moveHistory = this.moveHistory.slice(0, this.state.moveNumber + 1);
 
 				if (this.gameIsOver()) {
 					if (this.state.moveNumber + 1 == this.state.solutionMoves) {
@@ -555,7 +574,28 @@ var Game = function (_React$Component) {
 
 			// push changes to UI
 			this.displayTempColors();
+			this.moveHistory = new Array();
 			this.setState({ status: "", moveNumber: 0 });
+		}
+	}, {
+		key: "undoBtnClicked",
+		value: function undoBtnClicked() {
+			// roll back the last move, if possible
+			if (this.state.moveNumber > 0) {
+				this.setBoardStateTo(this.moveHistory.slice(0, this.state.moveNumber - 1));
+				this.displayTempColors();
+				this.setState({ moveNumber: this.state.moveNumber - 1 });
+			}
+		}
+	}, {
+		key: "redoBtnClicked",
+		value: function redoBtnClicked() {
+			// move forward a move, if the undo button has been clicked at least once
+			if (this.state.moveNumber < this.moveHistory.length) {
+				this.setBoardStateTo(this.moveHistory.slice(0, this.state.moveNumber + 1));
+				this.displayTempColors();
+				this.setState({ moveNumber: this.state.moveNumber + 1 });
+			}
 		}
 	}, {
 		key: "render",
@@ -564,6 +604,12 @@ var Game = function (_React$Component) {
 
 			var solutionBtnStyle = {
 				backgroundColor: this.state.solution == "" ? "white" : "gray"
+			};
+			var undoBtnStyle = {
+				backgroundColor: this.state.moveNumber > 0 ? "white" : "gray"
+			};
+			var redoBtnStyle = {
+				backgroundColor: this.state.moveNumber < this.moveHistory.length ? "white" : "gray"
 			};
 			return React.createElement(
 				"div",
@@ -574,6 +620,24 @@ var Game = function (_React$Component) {
 				React.createElement(
 					"div",
 					{ className: "controlContainer" },
+					React.createElement(
+						"div",
+						{ className: "moveControlContainer" },
+						React.createElement(
+							"button",
+							{ className: "controlBtn", style: undoBtnStyle, onClick: function onClick() {
+									return _this3.undoBtnClicked();
+								} },
+							"Undo"
+						),
+						React.createElement(
+							"button",
+							{ className: "controlBtn", style: redoBtnStyle, onClick: function onClick() {
+									return _this3.redoBtnClicked();
+								} },
+							"Redo"
+						)
+					),
 					React.createElement(
 						"button",
 						{ className: "controlBtn", onClick: function onClick() {
@@ -635,7 +699,7 @@ var Container = function (_React$Component2) {
 
 		_this4.state = {
 			gameSize: 5,
-			numColors: 3
+			numColors: 5
 		};
 		return _this4;
 	}
