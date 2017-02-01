@@ -65,13 +65,13 @@ var Game = function (_React$Component) {
 		_this.state = {
 			status: "",
 			solutionMoves: "?",
-			solution: [],
+			solution: [99],
 			moveNumber: 0,
 			colors: new Array()
 		};
 
 		// hidden variable to store human readable solution
-		_this.solution = [];
+		_this.solution = [99];
 
 		// initialize game state
 		_this.initializeBoard(true);
@@ -85,7 +85,7 @@ var Game = function (_React$Component) {
 		key: "componentWillReceiveProps",
 		value: function componentWillReceiveProps(nextProps) {
 			this.props = nextProps;
-			this.setState({ solution: [], status: "" });
+			this.setState({ solution: [99], status: "" });
 			this.initializeBoard();
 		}
 	}, {
@@ -126,7 +126,7 @@ var Game = function (_React$Component) {
 			// update UI
 			// on initial load, these are handled in componentWillMount
 			if (!firstTime) {
-				this.setState({ moveNumber: 0, solution: [], colors: colors });
+				this.setState({ moveNumber: 0, solution: [99], colors: colors });
 				this.displayTempColors();
 				this.solve();
 			}
@@ -482,16 +482,12 @@ var Game = function (_React$Component) {
 			return result;
 		}
 
-		// show / hide solution in UI
+		// show solution in UI
 
 	}, {
-		key: "toggleSolution",
-		value: function toggleSolution() {
-			if (this.state.solution == "") {
-				this.setState({ solution: this.solution });
-			} else {
-				this.setState({ solution: [] });
-			}
+		key: "showSolution",
+		value: function showSolution() {
+			this.setState({ solution: this.solution });
 		}
 
 		// checks if connectivity matrix is all true
@@ -554,9 +550,11 @@ var Game = function (_React$Component) {
 				this.moveHistory[this.state.moveNumber] = colorInt;
 				this.moveHistory = this.moveHistory.slice(0, this.state.moveNumber + 1);
 
+				// check for end of game
 				if (this.gameIsOver()) {
 					if (this.state.moveNumber + 1 == this.state.solutionMoves) {
 						newState["status"] = "You win!";
+						this.showSolution();
 					} else {
 						newState["status"] = "Try again";
 					}
@@ -628,22 +626,29 @@ var Game = function (_React$Component) {
 					React.createElement(ControlBtn, { active: true, onClick: function onClick() {
 							return _this3.resetBtnClicked();
 						}, text: "Restart" }),
-					React.createElement(ControlBtn, { active: this.state.solution == "", onClick: function onClick() {
-							return _this3.toggleSolution();
-						}, text: "Solution" }),
+					React.createElement(ControlBtn, { active: this.state.solution[0] == 99, onClick: function onClick() {
+							return _this3.showSolution();
+						}, text: "Solution" })
+				),
+				React.createElement(
+					"div",
+					{ className: "outputContainer" },
 					React.createElement(
 						"div",
 						{ className: "outputText", id: "moveNumber" },
 						"Move: ",
 						this.state.moveNumber
 					),
+					React.createElement(MoveList, { id: "moveHistory", moveList: this.state.moveNumber > 0 ? this.moveHistory.slice(0, this.state.moveNumber) : [99], onClick: function onClick(colorInt) {
+							return _this3.handleClick(colorInt);
+						} }),
 					React.createElement(
 						"div",
 						{ className: "outputText", id: "solutionMoves" },
 						"Goal: ",
 						this.state.solutionMoves
 					),
-					React.createElement(Solution, { solution: this.state.solution, onClick: function onClick(colorInt) {
+					React.createElement(MoveList, { id: "solutionOutput", moveList: this.state.solution, onClick: function onClick(colorInt) {
 							return _this3.handleClick(colorInt);
 						} }),
 					React.createElement(
@@ -659,13 +664,13 @@ var Game = function (_React$Component) {
 	return Game;
 }(React.Component);
 
-function Solution(props) {
+function MoveList(props) {
 	// convert currentPath from numbers to colors (0 -> "red", etc)
 	// and color code it for display
 	return React.createElement(
 		"div",
 		{ className: "outputText" },
-		props.solution.map(function (colorInt, index) {
+		props.moveList.map(function (colorInt, index) {
 			return React.createElement(Square, { key: index, color: colorInt, onClick: function onClick() {
 					return props.onClick(colorInt);
 				} });
@@ -675,11 +680,12 @@ function Solution(props) {
 
 function ControlBtn(props) {
 	var style = {
-		backgroundColor: props.active ? "white" : "gray"
+		color: props.active ? "black" : "#CCC",
+		border: props.active ? "2px solid black" : "2px solid #CCC"
 	};
 	return React.createElement(
 		"button",
-		{ className: "controlBtn", style: style, onClick: function onClick() {
+		{ className: "controlBtn", disabled: !props.active, style: style, onClick: function onClick() {
 				return props.onClick();
 			} },
 		props.text
@@ -806,7 +812,8 @@ var numberToColor = {
 	3: "purple",
 	4: "gray",
 	5: "orange",
-	6: "black"
+	6: "black",
+	99: "white"
 };
 
 ReactDOM.render(React.createElement(Container, null), document.getElementById('container'));

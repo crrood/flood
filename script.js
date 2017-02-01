@@ -42,13 +42,13 @@ class Game extends React.Component {
 		this.state = {
 			status: "",
 			solutionMoves: "?",
-			solution: [],
+			solution: [99],
 			moveNumber: 0,
 			colors: new Array(),
 		}
 
 		// hidden variable to store human readable solution
-		this.solution = [];
+		this.solution = [99];
 
 		// initialize game state
 		this.initializeBoard(true);
@@ -57,7 +57,7 @@ class Game extends React.Component {
 	// reset board and UI on size / numColor change
 	componentWillReceiveProps(nextProps) {
 		this.props = nextProps;
-		this.setState({solution: [], status: ""});
+		this.setState({solution: [99], status: ""});
 		this.initializeBoard();
 	}
 
@@ -95,7 +95,7 @@ class Game extends React.Component {
 		// update UI
 		// on initial load, these are handled in componentWillMount
 		if (!firstTime) {
-			this.setState({moveNumber: 0, solution: [], colors: colors});
+			this.setState({moveNumber: 0, solution: [99], colors: colors});
 			this.displayTempColors();
 			this.solve();
 		}
@@ -396,14 +396,9 @@ class Game extends React.Component {
 		return result;
 	}
 
-	// show / hide solution in UI
-	toggleSolution() {
-		if (this.state.solution == "") {
-			this.setState({solution: this.solution});
-		} else {
-			this.setState({solution: []});
-		}
-
+	// show solution in UI
+	showSolution() {
+		this.setState({solution: this.solution});
 	}
 
 	// checks if connectivity matrix is all true
@@ -452,9 +447,11 @@ class Game extends React.Component {
 			this.moveHistory[this.state.moveNumber] = colorInt;
 			this.moveHistory = this.moveHistory.slice(0, this.state.moveNumber + 1);
 
+			// check for end of game
 			if (this.gameIsOver()) {
 				if (this.state.moveNumber + 1 == this.state.solutionMoves) {
 					newState["status"] = "You win!";
+					this.showSolution();
 				} else {
 					newState["status"] = "Try again";
 				}
@@ -505,10 +502,13 @@ class Game extends React.Component {
 					</div>
 					<ControlBtn active={true} onClick={() => this.initializeBoard()} text="New"/>
 					<ControlBtn active={true} onClick={() => this.resetBtnClicked()} text="Restart"/>
-					<ControlBtn active={this.state.solution == ""} onClick={() => this.toggleSolution()} text="Solution"/>
+					<ControlBtn active={this.state.solution[0] == 99} onClick={() => this.showSolution()} text="Solution"/>
+				</div>
+				<div className="outputContainer">
 					<div className="outputText" id="moveNumber">Move: {this.state.moveNumber}</div>
+					<MoveList id="moveHistory" moveList={this.state.moveNumber > 0 ? this.moveHistory.slice(0, this.state.moveNumber) : [99]} onClick={(colorInt) => this.handleClick(colorInt)}/>
 					<div className="outputText" id="solutionMoves">Goal: {this.state.solutionMoves}</div>
-					<Solution solution={this.state.solution} onClick={(colorInt) => this.handleClick(colorInt)}/>
+					<MoveList id="solutionOutput" moveList={this.state.solution} onClick={(colorInt) => this.handleClick(colorInt)}/>
 					<div id="status">{this.state.status}</div>
 				</div>
 			</div>
@@ -516,12 +516,12 @@ class Game extends React.Component {
 	}
 }
 
-function Solution(props) {
+function MoveList(props) {
 	// convert currentPath from numbers to colors (0 -> "red", etc)
 	// and color code it for display
 	return (
 		<div className="outputText">
-			{props.solution.map((colorInt, index) => {
+			{props.moveList.map((colorInt, index) => {
 				return <Square key={index} color={colorInt} onClick={() => props.onClick(colorInt)}/>
 			})}
 		</div>
@@ -530,10 +530,11 @@ function Solution(props) {
 
 function ControlBtn(props) {
 	let style = {
-		backgroundColor: props.active ? "white" : "gray"
+		color: props.active ? "black" : "#CCC",
+		border: props.active ? "2px solid black" : "2px solid #CCC",
 	};
 	return (
-		<button className="controlBtn" style={style} onClick={() => props.onClick()}>{props.text}</button>
+		<button className="controlBtn" disabled={!props.active} style={style} onClick={() => props.onClick()}>{props.text}</button>
 	);
 }
 
@@ -587,6 +588,7 @@ var numberToColor = {
 	4: "gray",
 	5: "orange",
 	6: "black",
+	99: "white",
 }
 
 ReactDOM.render(
