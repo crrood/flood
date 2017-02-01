@@ -65,13 +65,13 @@ var Game = function (_React$Component) {
 		_this.state = {
 			status: "",
 			solutionMoves: "?",
-			solution: "",
+			solution: [],
 			moveNumber: 0,
 			colors: new Array()
 		};
 
 		// hidden variable to store human readable solution
-		_this.solution = "";
+		_this.solution = [];
 
 		// initialize game state
 		_this.initializeBoard(true);
@@ -85,7 +85,7 @@ var Game = function (_React$Component) {
 		key: "componentWillReceiveProps",
 		value: function componentWillReceiveProps(nextProps) {
 			this.props = nextProps;
-			this.setState({ solution: "", status: "" });
+			this.setState({ solution: [], status: "" });
 			this.initializeBoard();
 		}
 	}, {
@@ -94,21 +94,22 @@ var Game = function (_React$Component) {
 			var firstTime = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : false;
 
 			// store starting board state for resets
-			this.startingConnectivity = Array(this.props.size);
-			this.startingColors = Array(this.props.size);
-			this.connectivity = Array(this.props.size);
+			this.startingConnectivity = new Array(this.props.size);
+			this.startingColors = new Array(this.props.size);
+			this.connectivity = new Array(this.props.size);
+			var colors = new Array(this.props.size);
 
 			// initialize colors and connectivity arrays
 			var colorInt = void 0;
 			for (var x = 0; x < this.props.size; x++) {
-				this.state.colors[x] = Array(this.props.size);
-				this.startingColors[x] = Array(this.props.size);
-				this.connectivity[x] = Array(this.props.size);
+				colors[x] = new Array(this.props.size);
+				this.startingColors[x] = new Array(this.props.size);
+				this.connectivity[x] = new Array(this.props.size);
 				for (var y = 0; y < this.props.size; y++) {
 
 					// randomize starting state
 					colorInt = Math.floor(Math.random() * this.props.numColors);
-					this.state.colors[x][y] = colorInt;
+					colors[x][y] = colorInt;
 					this.startingColors[x][y] = colorInt;
 					this.connectivity[x][y] = false;
 				}
@@ -125,7 +126,7 @@ var Game = function (_React$Component) {
 			// update UI
 			// on initial load, these are handled in componentWillMount
 			if (!firstTime) {
-				this.setState({ moveNumber: 0, solution: "" });
+				this.setState({ moveNumber: 0, solution: [], colors: colors });
 				this.displayTempColors();
 				this.solve();
 			}
@@ -359,10 +360,8 @@ var Game = function (_React$Component) {
 				}
 			}
 
-			// convert currentPath from numbers to colors (0 -> "red", etc)
-			this.solution = currentPath.reduce(function (prev, curr) {
-				return prev.concat(numberToColor[curr] + ", ");
-			}, "").slice(0, -2);
+			// store solution
+			this.solution = currentPath;
 
 			// reset board to beginning of game
 			this.resetBoard();
@@ -491,7 +490,7 @@ var Game = function (_React$Component) {
 			if (this.state.solution == "") {
 				this.setState({ solution: this.solution });
 			} else {
-				this.setState({ solution: "" });
+				this.setState({ solution: [] });
 			}
 		}
 
@@ -604,15 +603,6 @@ var Game = function (_React$Component) {
 		value: function render() {
 			var _this3 = this;
 
-			var solutionBtnStyle = {
-				backgroundColor: this.state.solution == "" ? "white" : "gray"
-			};
-			var undoBtnStyle = {
-				backgroundColor: this.state.moveNumber > 0 ? "white" : "gray"
-			};
-			var redoBtnStyle = {
-				backgroundColor: this.state.moveNumber < this.moveHistory.length ? "white" : "gray"
-			};
 			return React.createElement(
 				"div",
 				null,
@@ -653,11 +643,7 @@ var Game = function (_React$Component) {
 						"Goal: ",
 						this.state.solutionMoves
 					),
-					React.createElement(
-						"div",
-						{ className: "outputText", id: "solution" },
-						this.state.solution
-					),
+					React.createElement(SolutionText, { solution: this.state.solution }),
 					React.createElement(
 						"div",
 						{ id: "status" },
@@ -670,6 +656,26 @@ var Game = function (_React$Component) {
 
 	return Game;
 }(React.Component);
+
+function SolutionText(props) {
+	// convert currentPath from numbers to colors (0 -> "red", etc)
+	// and color code it for display
+	return React.createElement(
+		"div",
+		{ className: "outputText" },
+		props.solution.map(function (moveInt, index) {
+			var style = {
+				color: numberToColor[moveInt]
+			};
+			return React.createElement(
+				"span",
+				{ key: index, style: style },
+				numberToColor[moveInt],
+				" "
+			);
+		})
+	);
+}
 
 function ControlBtn(props) {
 	var style = {

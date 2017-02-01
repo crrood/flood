@@ -42,13 +42,13 @@ class Game extends React.Component {
 		this.state = {
 			status: "",
 			solutionMoves: "?",
-			solution: "",
+			solution: [],
 			moveNumber: 0,
 			colors: new Array(),
 		}
 
 		// hidden variable to store human readable solution
-		this.solution = "";
+		this.solution = [];
 
 		// initialize game state
 		this.initializeBoard(true);
@@ -57,27 +57,28 @@ class Game extends React.Component {
 	// reset board and UI on size / numColor change
 	componentWillReceiveProps(nextProps) {
 		this.props = nextProps;
-		this.setState({solution: "", status: ""});
+		this.setState({solution: [], status: ""});
 		this.initializeBoard();
 	}
 
 	initializeBoard(firstTime = false) {
 		// store starting board state for resets
-		this.startingConnectivity = Array(this.props.size);
-		this.startingColors = Array(this.props.size);
-		this.connectivity = Array(this.props.size);
+		this.startingConnectivity = new Array(this.props.size);
+		this.startingColors = new Array(this.props.size);
+		this.connectivity = new Array(this.props.size);
+		let colors = new Array (this.props.size);
 
 		// initialize colors and connectivity arrays
 		let colorInt;
 	   for (let x = 0; x < this.props.size; x++) {
-	    	this.state.colors[x] = Array(this.props.size);
-	    	this.startingColors[x] = Array(this.props.size);
-	    	this.connectivity[x] = Array(this.props.size);
+	    	colors[x] = new Array(this.props.size);
+	    	this.startingColors[x] = new Array(this.props.size);
+	    	this.connectivity[x] = new Array(this.props.size);
 			for (let y = 0; y < this.props.size; y++) {
 
 				// randomize starting state
 				colorInt = Math.floor(Math.random() * this.props.numColors);
-				this.state.colors[x][y] = colorInt;
+				colors[x][y] = colorInt;
 				this.startingColors[x][y] = colorInt;
 				this.connectivity[x][y] = false;
 			}
@@ -94,7 +95,7 @@ class Game extends React.Component {
 		// update UI
 		// on initial load, these are handled in componentWillMount
 		if (!firstTime) {
-			this.setState({moveNumber: 0, solution: ""});
+			this.setState({moveNumber: 0, solution: [], colors: colors});
 			this.displayTempColors();
 			this.solve();
 		}
@@ -282,12 +283,13 @@ class Game extends React.Component {
 				break;
 			}
 		}
-
-		// convert currentPath from numbers to colors (0 -> "red", etc)
-		this.solution = currentPath.reduce((prev, curr) => prev.concat(numberToColor[curr] + ", "), "").slice(0,-2);
 		
+		// store solution
+		this.solution = currentPath;
+
 		// reset board to beginning of game
 		this.resetBoard();
+
 
 		// push changes to UI
 		this.displayTempColors();
@@ -399,7 +401,7 @@ class Game extends React.Component {
 		if (this.state.solution == "") {
 			this.setState({solution: this.solution});
 		} else {
-			this.setState({solution: ""});
+			this.setState({solution: []});
 		}
 
 	}
@@ -493,15 +495,6 @@ class Game extends React.Component {
 	}
 
 	render() {
-		let solutionBtnStyle = {
-			backgroundColor: this.state.solution == "" ? "white" : "gray" 
-		};
-		let undoBtnStyle = {
-			backgroundColor: this.state.moveNumber > 0 ? "white" : "gray"
-		};
-		let redoBtnStyle = {
-			backgroundColor: this.state.moveNumber < this.moveHistory.length ? "white" : "gray"
-		}
 		return (
 			<div>
 				<Board colors={this.state.colors} onClick={(x,y) => this.handleClick(x,y)}/>
@@ -515,12 +508,27 @@ class Game extends React.Component {
 					<ControlBtn active={this.state.solution == ""} onClick={() => this.toggleSolution()} text="Solution"/>
 					<div className="outputText" id="moveNumber">Move: {this.state.moveNumber}</div>
 					<div className="outputText" id="solutionMoves">Goal: {this.state.solutionMoves}</div>
-					<div className="outputText" id="solution">{this.state.solution}</div>
+					<SolutionText solution={this.state.solution}/>
 					<div id="status">{this.state.status}</div>
 				</div>
 			</div>
 		);
 	}
+}
+
+function SolutionText(props) {
+	// convert currentPath from numbers to colors (0 -> "red", etc)
+	// and color code it for display
+	return (
+		<div className="outputText">
+			{props.solution.map((moveInt, index) => {
+				let style = {
+					color: numberToColor[moveInt]
+				};
+				return <span key={index} style={style}>{numberToColor[moveInt]} </span>
+			})}
+		</div>
+	);
 }
 
 function ControlBtn(props) {
