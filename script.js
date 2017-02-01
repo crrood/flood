@@ -1,7 +1,3 @@
-// TODO
-// back and forward buttons
-// color code solution text
-
 var React = require("react");
 var ReactDOM = require("react-dom");
 var Heap = require("collections/heap");
