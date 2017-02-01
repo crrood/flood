@@ -46,8 +46,9 @@ class Game extends React.Component {
 			moveNumber: 0,
 			colors: new Array(),
 		}
+
+		// hidden variable to store human readable solution
 		this.solution = "";
-		this.moveHistory = new Array();
 
 		// initialize game state
 		this.initializeBoard(true);
@@ -83,6 +84,7 @@ class Game extends React.Component {
 		}
 
 		// variables to store current board state
+		this.moveHistory = new Array();
 		this.tempColors = this.duplicate2dArray(this.startingColors);
 		this.startingConnectivity = this.duplicate2dArray(this.connectivity);
 
@@ -505,12 +507,12 @@ class Game extends React.Component {
 				<Board colors={this.state.colors} onClick={(x,y) => this.handleClick(x,y)}/>
 				<div className="controlContainer">
 					<div className="moveControlContainer">
-						<button className="controlBtn" style={undoBtnStyle} onClick={() => this.undoBtnClicked()}>Undo</button>
-						<button className="controlBtn" style={redoBtnStyle} onClick={() => this.redoBtnClicked()}>Redo</button>
+						<ControlBtn active={this.state.moveNumber > 0} onClick={() => this.undoBtnClicked()} text="Undo"/>
+						<ControlBtn active={this.state.moveNumber < this.moveHistory.length} onClick={() => this.redoBtnClicked()} text="Redo"/>
 					</div>
-					<button className="controlBtn" onClick={() => this.initializeBoard()}>New</button>
-					<button className="controlBtn" onClick={() => this.resetBtnClicked()}>Restart</button>
-					<button className="controlBtn" style={solutionBtnStyle} onClick={() => this.toggleSolution()}>Solution</button>
+					<ControlBtn active={true} onClick={() => this.initializeBoard()} text="New"/>
+					<ControlBtn active={true} onClick={() => this.resetBtnClicked()} text="Restart"/>
+					<ControlBtn active={this.state.solution == ""} onClick={() => this.toggleSolution()} text="Solution"/>
 					<div className="outputText" id="moveNumber">Move: {this.state.moveNumber}</div>
 					<div className="outputText" id="solutionMoves">Goal: {this.state.solutionMoves}</div>
 					<div className="outputText" id="solution">{this.state.solution}</div>
@@ -519,6 +521,15 @@ class Game extends React.Component {
 			</div>
 		);
 	}
+}
+
+function ControlBtn(props) {
+	let style = {
+		backgroundColor: props.active ? "white" : "gray"
+	};
+	return (
+		<button className="controlBtn" style={style} onClick={() => props.onClick()}>{props.text}</button>
+	);
 }
 
 class Container extends React.Component {

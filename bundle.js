@@ -69,8 +69,9 @@ var Game = function (_React$Component) {
 			moveNumber: 0,
 			colors: new Array()
 		};
+
+		// hidden variable to store human readable solution
 		_this.solution = "";
-		_this.moveHistory = new Array();
 
 		// initialize game state
 		_this.initializeBoard(true);
@@ -114,6 +115,7 @@ var Game = function (_React$Component) {
 			}
 
 			// variables to store current board state
+			this.moveHistory = new Array();
 			this.tempColors = this.duplicate2dArray(this.startingColors);
 			this.startingConnectivity = this.duplicate2dArray(this.connectivity);
 
@@ -623,42 +625,22 @@ var Game = function (_React$Component) {
 					React.createElement(
 						"div",
 						{ className: "moveControlContainer" },
-						React.createElement(
-							"button",
-							{ className: "controlBtn", style: undoBtnStyle, onClick: function onClick() {
-									return _this3.undoBtnClicked();
-								} },
-							"Undo"
-						),
-						React.createElement(
-							"button",
-							{ className: "controlBtn", style: redoBtnStyle, onClick: function onClick() {
-									return _this3.redoBtnClicked();
-								} },
-							"Redo"
-						)
+						React.createElement(ControlBtn, { active: this.state.moveNumber > 0, onClick: function onClick() {
+								return _this3.undoBtnClicked();
+							}, text: "Undo" }),
+						React.createElement(ControlBtn, { active: this.state.moveNumber < this.moveHistory.length, onClick: function onClick() {
+								return _this3.redoBtnClicked();
+							}, text: "Redo" })
 					),
-					React.createElement(
-						"button",
-						{ className: "controlBtn", onClick: function onClick() {
-								return _this3.initializeBoard();
-							} },
-						"New"
-					),
-					React.createElement(
-						"button",
-						{ className: "controlBtn", onClick: function onClick() {
-								return _this3.resetBtnClicked();
-							} },
-						"Restart"
-					),
-					React.createElement(
-						"button",
-						{ className: "controlBtn", style: solutionBtnStyle, onClick: function onClick() {
-								return _this3.toggleSolution();
-							} },
-						"Solution"
-					),
+					React.createElement(ControlBtn, { active: true, onClick: function onClick() {
+							return _this3.initializeBoard();
+						}, text: "New" }),
+					React.createElement(ControlBtn, { active: true, onClick: function onClick() {
+							return _this3.resetBtnClicked();
+						}, text: "Restart" }),
+					React.createElement(ControlBtn, { active: this.state.solution == "", onClick: function onClick() {
+							return _this3.toggleSolution();
+						}, text: "Solution" }),
 					React.createElement(
 						"div",
 						{ className: "outputText", id: "moveNumber" },
@@ -688,6 +670,19 @@ var Game = function (_React$Component) {
 
 	return Game;
 }(React.Component);
+
+function ControlBtn(props) {
+	var style = {
+		backgroundColor: props.active ? "white" : "gray"
+	};
+	return React.createElement(
+		"button",
+		{ className: "controlBtn", style: style, onClick: function onClick() {
+				return props.onClick();
+			} },
+		props.text
+	);
+}
 
 var Container = function (_React$Component2) {
 	_inherits(Container, _React$Component2);
