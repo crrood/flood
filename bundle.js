@@ -19,7 +19,9 @@ var Heap = require("collections/heap");
 
 // display color and send it back up on click
 function Square(props) {
-	return React.createElement("button", { className: "square", style: { backgroundColor: numberToColor[props.color] }, onClick: function onClick() {
+	var style = props.style ? props.style : {};
+	style.backgroundColor = numberToColor[props.color];
+	return React.createElement("button", { className: "square", style: style, onClick: function onClick() {
 			return props.onClick();
 		} });
 }
@@ -116,7 +118,7 @@ var Game = function (_React$Component) {
 			}
 
 			// variables to store current board state
-			this.moveHistory = new Array();
+			this.moveHistory = [99];
 			this.tempColors = this.duplicate2dArray(this.startingColors);
 			this.startingConnectivity = this.duplicate2dArray(this.connectivity);
 
@@ -546,9 +548,12 @@ var Game = function (_React$Component) {
 				// increment moveNumber
 				newState["moveNumber"] = this.state.moveNumber + 1;
 
-				// update moveHistory
-				this.moveHistory[this.state.moveNumber] = colorInt;
-				this.moveHistory = this.moveHistory.slice(0, this.state.moveNumber + 1);
+				if (this.moveHistory[this.state.moveNumber] != colorInt) {
+
+					// update moveHistory
+					this.moveHistory[this.state.moveNumber] = colorInt;
+					this.moveHistory = this.moveHistory.slice(0, this.state.moveNumber + 1);
+				}
 
 				// check for end of game
 				if (this.gameIsOver()) {
@@ -565,42 +570,66 @@ var Game = function (_React$Component) {
 				this.displayTempColors();
 			}
 		}
+
+		// reset game state and update UI
+
 	}, {
 		key: "resetBtnClicked",
 		value: function resetBtnClicked() {
-			// reset game state
 			this.resetBoard();
 
 			// push changes to UI
 			this.displayTempColors();
-			this.moveHistory = new Array();
+			this.moveHistory = [99];
 			this.setState({ status: "", moveNumber: 0 });
 		}
+
+		// roll back the last move, if possible
+
 	}, {
 		key: "undoBtnClicked",
 		value: function undoBtnClicked() {
-			// roll back the last move, if possible
 			if (this.state.moveNumber > 0) {
 				this.setBoardStateTo(this.moveHistory.slice(0, this.state.moveNumber - 1));
 				this.displayTempColors();
 				this.setState({ moveNumber: this.state.moveNumber - 1 });
 			}
 		}
+
+		// move forward a move, if the undo button has been clicked at least once
+
 	}, {
 		key: "redoBtnClicked",
 		value: function redoBtnClicked() {
-			// move forward a move, if the undo button has been clicked at least once
 			if (this.state.moveNumber < this.moveHistory.length) {
 				this.setBoardStateTo(this.moveHistory.slice(0, this.state.moveNumber + 1));
 				this.displayTempColors();
 				this.setState({ moveNumber: this.state.moveNumber + 1 });
 			}
 		}
+
+		// set the board to whichever move was clicked
+
+	}, {
+		key: "moveListClicked",
+		value: function moveListClicked(moveList, moveIndex, shouldCutMoveList) {
+			this.setBoardStateTo(moveList.slice(0, moveIndex + 1));
+			if (shouldCutMoveList) {
+				this.moveHistory = moveList.slice(0, moveIndex + 1);
+			} else {
+				this.moveHistory = moveList;
+			}
+			this.displayTempColors();
+			this.setState({ moveNumber: moveIndex + 1 });
+		}
 	}, {
 		key: "render",
 		value: function render() {
 			var _this3 = this;
 
+			var moveListOnClick = function moveListOnClick(moveList, moveIndex, shouldCutMoveList) {
+				return _this3.moveListClicked(moveList, moveIndex, shouldCutMoveList);
+			};
 			return React.createElement(
 				"div",
 				null,
@@ -639,23 +668,21 @@ var Game = function (_React$Component) {
 						"Move: ",
 						this.state.moveNumber
 					),
-					React.createElement(MoveList, { id: "moveHistory", moveList: this.state.moveNumber > 0 ? this.moveHistory.slice(0, this.state.moveNumber) : [99], onClick: function onClick(colorInt) {
-							return _this3.handleClick(colorInt);
-						} }),
+					React.createElement(MoveList, { id: "moveHistory",
+						activeIndex: this.state.moveNumber,
+						moveList: this.moveHistory,
+						shouldCutMoveList: false,
+						onClick: moveListOnClick }),
 					React.createElement(
 						"div",
 						{ className: "outputText", id: "solutionMoves" },
 						"Goal: ",
 						this.state.solutionMoves
 					),
-					React.createElement(MoveList, { id: "solutionOutput", moveList: this.state.solution, onClick: function onClick(colorInt) {
-							return _this3.handleClick(colorInt);
-						} }),
-					React.createElement(
-						"div",
-						{ id: "status" },
-						this.state.status
-					)
+					React.createElement(MoveList, { id: "solutionOutput",
+						moveList: this.state.solution,
+						shouldCutMoveList: true,
+						onClick: moveListOnClick })
 				)
 			);
 		}
@@ -667,12 +694,15 @@ var Game = function (_React$Component) {
 function MoveList(props) {
 	// convert currentPath from numbers to colors (0 -> "red", etc)
 	// and color code it for display
-	return React.createElement(
+	;return React.createElement(
 		"div",
 		{ className: "outputText" },
 		props.moveList.map(function (colorInt, index) {
-			return React.createElement(Square, { key: index, color: colorInt, onClick: function onClick() {
-					return props.onClick(colorInt);
+			var style = {};
+			style.borderWidth = 5;
+			style.borderColor = index == props.activeIndex - 1 ? "black" : "white";
+			return React.createElement(Square, { key: index, style: style, color: colorInt, onClick: function onClick() {
+					return props.onClick(props.moveList, index, props.shouldCutMoveList);
 				} });
 		})
 	);

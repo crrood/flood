@@ -8,8 +8,10 @@ var Heap = require("collections/heap");
 
 // display color and send it back up on click
 function Square(props) {
+	let style = props.style ? props.style : {};
+	style.backgroundColor = numberToColor[props.color];
 	return (
-		<button className="square" style={{backgroundColor: numberToColor[props.color]}} onClick={() => props.onClick()}></button>
+		<button className="square" style={style} onClick={() => props.onClick()}></button>
 	);
 }
 
@@ -85,7 +87,7 @@ class Game extends React.Component {
 		}
 
 		// variables to store current board state
-		this.moveHistory = new Array();
+		this.moveHistory = [99];
 		this.tempColors = this.duplicate2dArray(this.startingColors);
 		this.startingConnectivity = this.duplicate2dArray(this.connectivity);
 
@@ -443,9 +445,12 @@ class Game extends React.Component {
 			// increment moveNumber
 			newState["moveNumber"] = this.state.moveNumber + 1;
 
-			// update moveHistory
-			this.moveHistory[this.state.moveNumber] = colorInt;
-			this.moveHistory = this.moveHistory.slice(0, this.state.moveNumber + 1);
+			if (this.moveHistory[this.state.moveNumber] != colorInt) {
+
+				// update moveHistory
+				this.moveHistory[this.state.moveNumber] = colorInt;
+				this.moveHistory = this.moveHistory.slice(0, this.state.moveNumber + 1);
+			}
 
 			// check for end of game
 			if (this.gameIsOver()) {
@@ -463,18 +468,18 @@ class Game extends React.Component {
 		}
 	}
 
+	// reset game state and update UI
 	resetBtnClicked() {
-		// reset game state
 		this.resetBoard();
 
 		// push changes to UI
 		this.displayTempColors();
-		this.moveHistory = new Array();
+		this.moveHistory = [99];
 		this.setState({status: "", moveNumber: 0});
 	}
 
+	// roll back the last move, if possible
 	undoBtnClicked() {
-		// roll back the last move, if possible
 		if (this.state.moveNumber > 0) {
 			this.setBoardStateTo(this.moveHistory.slice(0, this.state.moveNumber - 1));
 			this.displayTempColors();
@@ -482,8 +487,8 @@ class Game extends React.Component {
 		}
 	}
 
+	// move forward a move, if the undo button has been clicked at least once
 	redoBtnClicked() {
-		// move forward a move, if the undo button has been clicked at least once
 		if (this.state.moveNumber < this.moveHistory.length) {
 			this.setBoardStateTo(this.moveHistory.slice(0, this.state.moveNumber + 1));
 			this.displayTempColors();
@@ -491,7 +496,20 @@ class Game extends React.Component {
 		}
 	}
 
+	// set the board to whichever move was clicked
+	moveListClicked(moveList, moveIndex, shouldCutMoveList) {
+		this.setBoardStateTo(moveList.slice(0, moveIndex + 1));
+		if (shouldCutMoveList) {
+			this.moveHistory = moveList.slice(0, moveIndex + 1);
+		} else {
+			this.moveHistory = moveList;
+		}
+		this.displayTempColors();
+		this.setState({moveNumber: moveIndex + 1});
+	}
+
 	render() {
+		let moveListOnClick = (moveList, moveIndex, shouldCutMoveList) => this.moveListClicked(moveList, moveIndex, shouldCutMoveList);
 		return (
 			<div>
 				<Board colors={this.state.colors} onClick={(colorInt) => this.handleClick(colorInt)}/>
@@ -506,10 +524,16 @@ class Game extends React.Component {
 				</div>
 				<div className="outputContainer">
 					<div className="outputText" id="moveNumber">Move: {this.state.moveNumber}</div>
-					<MoveList id="moveHistory" moveList={this.state.moveNumber > 0 ? this.moveHistory.slice(0, this.state.moveNumber) : [99]} onClick={(colorInt) => this.handleClick(colorInt)}/>
+					<MoveList id="moveHistory"
+						activeIndex={this.state.moveNumber} 
+						moveList={this.moveHistory} 
+						shouldCutMoveList={false} 
+						onClick={moveListOnClick}/>
 					<div className="outputText" id="solutionMoves">Goal: {this.state.solutionMoves}</div>
-					<MoveList id="solutionOutput" moveList={this.state.solution} onClick={(colorInt) => this.handleClick(colorInt)}/>
-					<div id="status">{this.state.status}</div>
+					<MoveList id="solutionOutput" 
+						moveList={this.state.solution} 
+						shouldCutMoveList={true} 
+						onClick={moveListOnClick}/>
 				</div>
 			</div>
 		);
@@ -519,10 +543,13 @@ class Game extends React.Component {
 function MoveList(props) {
 	// convert currentPath from numbers to colors (0 -> "red", etc)
 	// and color code it for display
-	return (
+;	return (
 		<div className="outputText">
 			{props.moveList.map((colorInt, index) => {
-				return <Square key={index} color={colorInt} onClick={() => props.onClick(colorInt)}/>
+				let style = {};
+				style.borderWidth = 5;
+				style.borderColor = index == props.activeIndex - 1 ? "black" : "white";
+				return <Square key={index} style={style} color={colorInt} onClick={() => props.onClick(props.moveList, index, props.shouldCutMoveList)}/>
 			})}
 		</div>
 	);
